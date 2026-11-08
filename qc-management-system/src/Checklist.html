@@ -1,0 +1,696 @@
+<!-- Checklist.html — QC Management System: Digital Checklist & Inspection -->
+<div id="view-checklist" class="module-view" style="display:none;">
+
+  <!-- ── MODE 1: RIWAYAT / DAFTAR CHECKLIST ── -->
+  <div id="ck-container-list">
+    <div class="d-flex flex-wrap align-items-center justify-content-between mb-3 border-bottom pb-2 gap-2">
+      <div>
+        <h5 class="mb-0 fw-bold" style="color:#172554;">Riwayat Pemeriksaan Checklist</h5>
+        <div class="small text-muted">Daftar inspeksi mutu operasional Cinema, F&amp;B, dan Premiere</div>
+      </div>
+      <button class="btn btn-sm btn-primary px-3 py-2" id="btn-new-checklist" onclick="openNewChecklistForm()">
+        + Mulai Pemeriksaan Baru
+      </button>
+    </div>
+
+    <!-- Filter Bar Riwayat -->
+    <div class="card p-3 border-0 shadow-xs mb-3 bg-white">
+      <div class="row g-2 align-items-end">
+        <div class="col-md-3">
+          <label class="form-label small fw-semibold text-secondary mb-1">Dari Tanggal</label>
+          <input type="date" class="form-control form-control-sm" id="ck-filter-from">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small fw-semibold text-secondary mb-1">Sampai Tanggal</label>
+          <input type="date" class="form-control form-control-sm" id="ck-filter-to">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold text-secondary mb-1">Filter Outlet</label>
+          <select class="form-select form-select-sm" id="ck-filter-outlet">
+            <option value="">Semua Outlet</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <button class="btn btn-sm btn-dark w-100" onclick="loadChecklistList()">Tampilkan</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabel Riwayat Checklist -->
+    <div class="card border-0 shadow-xs bg-white">
+      <div id="ck-list-table-box"></div>
+    </div>
+  </div>
+
+  <!-- ── MODE 2: FORM PENGISIAN CHECKLIST DIGITAL ── -->
+  <div id="ck-container-form" style="display:none;">
+    <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+      <div class="d-flex align-items-center gap-2">
+        <button class="btn btn-sm btn-light border" onclick="cancelChecklistForm()">← Kembali</button>
+        <h5 class="mb-0 fw-bold" style="color:#172554;">Formulir Pemeriksaan Mutu</h5>
+      </div>
+      <div class="d-flex gap-2">
+        <button class="btn btn-sm btn-outline-secondary" onclick="saveDraftChecklist()">Simpan Draft</button>
+      </div>
+    </div>
+
+    <!-- Header Form: Pilih Visit / Outlet & Kategori -->
+    <div class="card p-4 border-0 shadow-xs mb-3 bg-white">
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold">Kunjungan Berjalan (Status In Progress)</label>
+          <select class="form-select form-select-sm" id="ck-form-visit" onchange="onChecklistVisitSelect()">
+            <option value="">— Pilih Kunjungan —</option>
+          </select>
+          <div class="form-text" id="ck-visit-hint" style="font-size:0.75rem;"></div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold">Nama Outlet</label>
+          <input type="text" class="form-control form-control-sm bg-light" id="ck-form-outlet" readonly placeholder="Pilih visit…">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold">Tanggal Pemeriksaan</label>
+          <input type="date" class="form-control form-control-sm" id="ck-form-date">
+        </div>
+      </div>
+
+      <hr class="my-3 opacity-25">
+
+      <div class="row g-3 align-items-center">
+        <div class="col-md-8">
+          <label class="form-label small fw-semibold mb-1">Pilih Kategori Pemeriksaan:</label>
+          <div class="d-flex gap-3">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="ck-cat-cinema" value="Cinema" checked onchange="loadChecklistItems()">
+              <label class="form-check-label small fw-semibold text-dark" for="ck-cat-cinema">Cinema</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="ck-cat-fnb" value="F&amp;B" checked onchange="loadChecklistItems()">
+              <label class="form-check-label small fw-semibold text-dark" for="ck-cat-fnb">F&amp;B</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="ck-cat-premiere" value="Premiere" onchange="loadChecklistItems()">
+              <label class="form-check-label small fw-semibold text-dark" for="ck-cat-premiere">Premiere</label>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4 text-md-end">
+          <button class="btn btn-sm btn-outline-primary" onclick="loadChecklistItems()">Muat Ulang Item</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Container Daftar Item Checklist -->
+    <div id="ck-items-container" class="mb-5">
+      <!-- Populated with item cards -->
+    </div>
+
+    <!-- Upload Berita Acara (PDF) -->
+    <div class="card p-4 border-0 shadow-xs mb-5 bg-white">
+      <div class="fw-bold mb-2" style="color:#172554;">Unggah Berita Acara Kunjungan (PDF)</div>
+      <div class="small text-muted mb-3">Maksimal 10 MB. Dokumen akan diarsipkan otomatis ke Google Drive.</div>
+      <input type="file" class="form-control" id="ck-pdf-file" accept="application/pdf">
+    </div>
+
+    <!-- Sticky Bottom Bar: Skor Sementara & Tombol Submit -->
+    <div class="card border-0 shadow-lg p-3 fixed-bottom bg-white" style="z-index:1020; border-top:1px solid #E2E8F0;">
+      <div class="container-fluid d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <div class="d-flex align-items-center gap-3">
+          <div>
+            <div class="small text-muted" style="font-size:0.75rem;">Skor Sementara</div>
+            <div class="fw-bold text-primary" style="font-size:1.3rem;" id="ck-live-score">0.0%</div>
+          </div>
+          <div id="ck-live-grade-badge">
+            <span class="badge bg-secondary">Grade -</span>
+          </div>
+          <div class="small text-muted" id="ck-live-answered-count">
+            0 / 0 dijawab
+          </div>
+        </div>
+        <div class="d-flex gap-2">
+          <button class="btn btn-sm btn-outline-secondary px-3" onclick="saveDraftChecklist()">Simpan Draft</button>
+          <button class="btn btn-sm btn-success px-4 fw-bold" id="btn-submit-checklist" onclick="submitChecklistFinal()">
+            Kirim Hasil Pemeriksaan
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- ── MODAL DETAIL CHECKLIST TERPERIKSA ── -->
+<div class="modal fade" id="modal-checklist-detail" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header" style="background:#172554; color:#fff;">
+        <div>
+          <h5 class="modal-title mb-0" id="mod-ckd-outlet">Detail Hasil Pemeriksaan</h5>
+          <span class="small opacity-75" id="mod-ckd-info"></span>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4" id="mod-ckd-body">
+        <!-- Populated -->
+      </div>
+      <div class="modal-footer d-flex justify-content-between">
+        <div id="mod-ckd-pdf-link"></div>
+        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Tutup</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/**
+ * Checklist Controller Logic
+ * Alur: Visit "In Progress" → isi checklist (item dari MASTER_CHECK) → submit → Visit "Completed"
+ */
+let CHECKLIST_ITEMS_RAW = [];
+let CHECKLIST_ANSWERS = {};   // idCheck -> { score: 1..scoreMax, isNA: bool, catatan: '' }
+let CHECKLIST_VISITS  = [];   // kunjungan In Progress yang belum punya checklist
+let CHECKLIST_SUBMITTING = false;
+
+function _ckVisit(v) {
+  v = v || {};
+  return {
+    id:       v.idVisit || v.IDVisit || '',
+    outlet:   v.namaOutlet || v.NamaOutlet || '',
+    qc:       v.namaQCArea || v.NamaQCArea || '',
+    tanggal:  v.tanggalRencana || v.TanggalRencana || '',
+    status:   v.status || v.Status || '',
+    checklist:v.checklistID || v.ChecklistID || ''
+  };
+}
+
+// ─── RIWAYAT ─────────────────────────────────────────────────────────────────
+async function loadChecklistList() {
+  const fFrom = $('ck-filter-from');
+  const fTo   = $('ck-filter-to');
+  if (fFrom && !fFrom.value) fFrom.value = firstOfMonth();
+  if (fTo && !fTo.value) fTo.value = today();
+
+  const curOutlet = $('ck-filter-outlet').value;
+  const oNames = (APP_STATE.outlets || []).map(o => o.nama);
+  populateSelect('ck-filter-outlet', oNames, null, null, true, 'Semua Outlet');
+  $('ck-filter-outlet').value = oNames.includes(curOutlet) ? curOutlet : '';
+
+  showSkeleton('ck-list-table-box', 4);
+  try {
+    const data = await call('apiGrading', APP_STATE.token, {
+      from: fFrom.value,
+      to: fTo.value,
+      outlet: $('ck-filter-outlet').value
+    });
+
+    let rows = data.rows || [];
+    const oFilter = norm_($('ck-filter-outlet').value);
+    if (oFilter) rows = rows.filter(r => norm_(r.outlet) === oFilter);
+
+    const cols = [
+      { key: 'tanggal', label: 'Tanggal', render: r => formatDate(r.tanggal) },
+      { key: 'outlet', label: 'Outlet', render: r => `<span class="fw-bold">${esc(r.outlet)}</span>` },
+      { key: 'qcArea', label: 'QC Area', render: r => esc(r.qcArea) },
+      { key: 'kategori', label: 'Kategori', render: r => `<span class="badge bg-light text-dark border">${esc(r.kategori)}</span>` },
+      { key: 'gradePercent', label: 'Skor', render: r => `<span class="fw-bold text-success">${fmtScore(r.gradePercent)}%</span>` },
+      { key: 'grade', label: 'Grade', render: r => gradeBadgeHtml(r.grade) },
+      { key: 'pdf', label: 'Dokumen', render: r => docButtonHtml(r.fileDocumentId, r.statusDokumen) },
+      {
+        key: 'aksi',
+        label: 'Aksi',
+        render: r => `<button class="btn btn-sm btn-light border py-1 px-2" style="font-size:0.75rem;" onclick="viewChecklistDetailById('${esc(r.idChecklist)}')">Rincian</button>`
+      }
+    ];
+
+    buildTable('ck-list-table-box', cols, rows, { emptyText: 'Belum ada rekaman checklist pemeriksaan.' });
+  } catch (err) {
+    toast('Gagal memuat riwayat checklist: ' + err.message, 'error');
+  }
+}
+
+// ─── FORM ────────────────────────────────────────────────────────────────────
+async function openNewChecklistForm(preselectVisitId) {
+  if (typeof preselectVisitId !== 'string') preselectVisitId = '';
+
+  $('ck-container-list').style.display = 'none';
+  $('ck-container-form').style.display = 'block';
+
+  $('ck-form-date').value = today();
+  $('ck-form-outlet').value = '';
+  $('ck-pdf-file').value = '';
+  CHECKLIST_ANSWERS = {};
+  CHECKLIST_ITEMS_RAW = [];
+
+  await loadInProgressVisits();
+
+  if (preselectVisitId) {
+    if (CHECKLIST_VISITS.some(v => v.id === preselectVisitId)) {
+      $('ck-form-visit').value = preselectVisitId;
+    } else {
+      toast('Kunjungan tidak berstatus "In Progress" atau checklist-nya sudah terkirim.', 'warning');
+    }
+  }
+
+  await restoreDraftIfAny(preselectVisitId);
+  await onChecklistVisitSelect();
+}
+
+function openChecklistFormForVisit(visitId) {
+  return openNewChecklistForm(String(visitId || ''));
+}
+
+async function loadInProgressVisits() {
+  const sel = $('ck-form-visit');
+  sel.innerHTML = '<option value="">Memuat kunjungan…</option>';
+  CHECKLIST_VISITS = [];
+  try {
+    const res = await call('apiGetVisits', APP_STATE.token, { status: 'In Progress' });
+    let list = ((res && res.data) || []).map(_ckVisit).filter(v => v.id && !v.checklist);
+
+    // QC Area: utamakan kunjungan miliknya sendiri
+    const me = APP_STATE.user || {};
+    if (norm_(me.role) === 'qc area') {
+      const mine = list.filter(v => norm_(v.qc) === norm_(me.nama));
+      if (mine.length) list = mine;
+    }
+    list.sort((a, b) => String(a.tanggal).localeCompare(String(b.tanggal)));
+    CHECKLIST_VISITS = list;
+  } catch (err) {
+    toast('Gagal memuat daftar kunjungan: ' + err.message, 'error');
+  }
+
+  let html = '<option value="">— Pilih Kunjungan —</option>';
+  CHECKLIST_VISITS.forEach(v => {
+    html += `<option value="${esc(v.id)}">${esc(v.outlet)} — ${formatDate(v.tanggal)} (${esc(v.qc)})</option>`;
+  });
+  sel.innerHTML = html;
+
+  $('ck-visit-hint').innerHTML = CHECKLIST_VISITS.length
+    ? `${CHECKLIST_VISITS.length} kunjungan siap diisi checklist.`
+    : '<span class="text-danger">Belum ada kunjungan berstatus In Progress. Buka menu Visit → Detail → "Mulai Kunjungan" terlebih dahulu.</span>';
+}
+
+async function onChecklistVisitSelect() {
+  const id = $('ck-form-visit').value;
+  const v = CHECKLIST_VISITS.find(x => x.id === id);
+  $('ck-form-outlet').value = v ? v.outlet : '';
+  await loadChecklistItems();
+}
+
+function cancelChecklistForm() {
+  $('ck-container-form').style.display = 'none';
+  $('ck-container-list').style.display = 'block';
+}
+
+function _selectedCategories() {
+  const cats = [];
+  if ($('ck-cat-cinema').checked) cats.push('Cinema');
+  if ($('ck-cat-fnb').checked) cats.push('F&B');
+  if ($('ck-cat-premiere').checked) cats.push('Premiere');
+  return cats;
+}
+
+function _ckPlaceholder(msg) {
+  $('ck-items-container').innerHTML = `<div class="card p-4 text-center text-muted">${msg}</div>`;
+  CHECKLIST_ITEMS_RAW = [];
+  recalculateLiveScore();
+}
+
+async function loadChecklistItems() {
+  const outlet = $('ck-form-outlet').value;
+  if (!outlet) {
+    _ckPlaceholder('Pilih kunjungan berstatus <b>In Progress</b> terlebih dahulu untuk memuat item pemeriksaan.');
+    return;
+  }
+  const cats = _selectedCategories();
+  if (!cats.length) {
+    _ckPlaceholder('Pilih minimal satu kategori pemeriksaan.');
+    return;
+  }
+
+  try {
+    const res = await call('apiChecklistItems', APP_STATE.token, outlet, cats);
+    CHECKLIST_ITEMS_RAW = res.items || [];
+    renderChecklistQuestions();
+    recalculateLiveScore();
+  } catch (err) {
+    toast('Gagal memuat item checklist: ' + err.message, 'error');
+  }
+}
+
+const _SCORE_LABELS = { 1: 'Sangat Buruk', 2: 'Buruk', 3: 'Cukup', 4: 'Baik', 5: 'Sangat Baik' };
+
+function renderChecklistQuestions() {
+  const container = $('ck-items-container');
+  if (!container) return;
+
+  if (CHECKLIST_ITEMS_RAW.length === 0) {
+    container.innerHTML = '<div class="card p-4 text-center text-muted">Tidak ada item aktif di Master Checklist untuk kategori yang dipilih.</div>';
+    return;
+  }
+
+  const groups = {};
+  CHECKLIST_ITEMS_RAW.forEach(it => {
+    const cat = (it.kategori || 'Umum') + (it.aspek ? ' — ' + it.aspek : '');
+    if (!groups[cat]) groups[cat] = [];
+    groups[cat].push(it);
+  });
+
+  let html = '';
+  Object.keys(groups).forEach(cat => {
+    html += `
+      <div class="card border-0 shadow-xs mb-4 bg-white overflow-hidden">
+        <div class="card-header bg-light py-2 px-3 fw-bold text-primary border-bottom" style="font-size:0.95rem;">
+          ${esc(cat)} <span class="text-muted fw-normal">(${groups[cat].length} item)</span>
+        </div>
+        <div class="card-body p-0">`;
+
+    groups[cat].forEach((item, idx) => {
+      const id = item.idCheck;
+      const max = Math.max(1, Math.min(10, Number(item.scoreMax) || 5));
+      const ans = CHECKLIST_ANSWERS[id] || { score: null, isNA: false, catatan: '' };
+      const scores = Array.from({ length: max }, (_, k) => k + 1);
+
+      html += `
+        <div class="p-3 border-bottom item-row" id="row-${esc(id)}">
+          <div class="d-flex justify-content-between align-items-start mb-2 gap-2">
+            <div>
+              <span class="badge bg-secondary-subtle text-secondary me-1">#${idx + 1}</span>
+              <span class="fw-bold text-dark" style="font-size:0.92rem;">${esc(item.namaChecklist)}</span>
+              ${item.deskripsi ? `<div class="small text-muted mt-1">${esc(item.deskripsi)}</div>` : ''}
+            </div>
+            <button class="btn btn-sm ${ans.isNA ? 'btn-secondary text-white' : 'btn-outline-secondary'}"
+                    style="font-size:0.75rem; padding:2px 8px; white-space:nowrap;"
+                    onclick="toggleNA('${esc(id)}')">
+              ${ans.isNA ? '✓ N/A Diaktifkan' : 'Set N/A'}
+            </button>
+          </div>
+
+          <div class="d-flex flex-wrap align-items-center gap-3">
+            <div class="btn-group btn-group-sm" role="group">
+              ${scores.map(sc => {
+                const isSelected = ans.score === sc && !ans.isNA;
+                const tip = max === 5 ? `${sc} — ${_SCORE_LABELS[sc]}` : `${sc} dari ${max}`;
+                return `
+                  <button type="button"
+                          class="btn ${isSelected ? 'btn-primary fw-bold' : 'btn-outline-secondary'}"
+                          title="${esc(tip)}"
+                          ${ans.isNA ? 'disabled' : ''}
+                          onclick="setChecklistScore('${esc(id)}', ${sc})">
+                    ${sc}
+                  </button>`;
+              }).join('')}
+            </div>
+            <span class="small text-muted">maks ${max}</span>
+
+            <input type="text"
+                   class="form-control form-control-sm flex-grow-1"
+                   placeholder="Catatan temuan / evaluasi…"
+                   value="${esc(ans.catatan)}"
+                   onchange="setChecklistCatatan('${esc(id)}', this.value)">
+          </div>
+        </div>`;
+    });
+
+    html += `</div></div>`;
+  });
+
+  container.innerHTML = html;
+}
+
+function _ensureAnswer(id) {
+  if (!CHECKLIST_ANSWERS[id]) CHECKLIST_ANSWERS[id] = { score: null, isNA: false, catatan: '' };
+  return CHECKLIST_ANSWERS[id];
+}
+
+function setChecklistScore(id, score) {
+  const a = _ensureAnswer(id);
+  a.score = score;
+  a.isNA  = false;
+  renderChecklistQuestions();
+  recalculateLiveScore();
+}
+
+function toggleNA(id) {
+  const a = _ensureAnswer(id);
+  a.isNA = !a.isNA;
+  if (a.isNA) a.score = null;
+  renderChecklistQuestions();
+  recalculateLiveScore();
+}
+
+function setChecklistCatatan(id, val) {
+  _ensureAnswer(id).catatan = val;
+}
+
+function recalculateLiveScore() {
+  let totalScoreAktual = 0;
+  let totalScoreMax = 0;
+  let answeredCount = 0;
+
+  CHECKLIST_ITEMS_RAW.forEach(item => {
+    const ans = CHECKLIST_ANSWERS[item.idCheck];
+    if (!ans) return;
+
+    if (ans.isNA) {
+      answeredCount++;
+      return; // N/A dikecualikan dari perhitungan
+    }
+    if (ans.score != null) {
+      answeredCount++;
+      totalScoreAktual += ans.score;
+      totalScoreMax += Number(item.scoreMax || 5);
+    }
+  });
+
+  const percentage = totalScoreMax > 0 ? (totalScoreAktual / totalScoreMax) * 100 : 0;
+
+  // Ambang grade (sinkron dengan konfigurasi default sistem; nilai final dihitung server)
+  let grade = totalScoreMax > 0 ? 'E' : '-';
+  if (totalScoreMax > 0) {
+    const c = APP_STATE.appConfig || {};
+    if (percentage >= (c.gradeAMin || 90)) grade = 'A';
+    else if (percentage >= (c.gradeBMin || 80)) grade = 'B';
+    else if (percentage >= (c.gradeCMin || 70)) grade = 'C';
+    else if (percentage >= (c.gradeDMin || 60)) grade = 'D';
+  }
+
+  $('ck-live-score').textContent = fmtPercent(percentage, 1);
+  $('ck-live-grade-badge').innerHTML = grade === '-' ? '<span class="badge bg-secondary">Grade -</span>' : gradeBadgeHtml(grade);
+  $('ck-live-answered-count').textContent = `${answeredCount} / ${CHECKLIST_ITEMS_RAW.length} dijawab`;
+}
+
+// ─── DRAFT ───────────────────────────────────────────────────────────────────
+async function saveDraftChecklist() {
+  const visitId = $('ck-form-visit').value;
+  const outlet  = $('ck-form-outlet').value;
+  if (!visitId || !outlet) {
+    toast('Pilih kunjungan In Progress terlebih dahulu.', 'warning');
+    return;
+  }
+
+  const items = Object.keys(CHECKLIST_ANSWERS).map(k => ({
+    idItem: k,
+    score: CHECKLIST_ANSWERS[k].score,
+    isNA: CHECKLIST_ANSWERS[k].isNA,
+    catatan: CHECKLIST_ANSWERS[k].catatan
+  }));
+
+  try {
+    await call('apiSaveDraft', APP_STATE.token, {
+      idVisit: visitId,
+      outlet: outlet,
+      tanggal: $('ck-form-date').value,
+      kategori: _selectedCategories(),
+      items: items
+    });
+    toast('Draft checklist tersimpan (berlaku 1 jam).', 'info');
+  } catch (err) {
+    toast('Gagal menyimpan draft: ' + err.message, 'error');
+  }
+}
+
+async function restoreDraftIfAny(preselectVisitId) {
+  try {
+    const res = await call('apiGetDraft', APP_STATE.token);
+    const d = res && res.draft;
+    if (!d || !d.idVisit) return;
+    if (!CHECKLIST_VISITS.some(v => v.id === d.idVisit)) return;           // visit sudah tidak In Progress
+    if (preselectVisitId && preselectVisitId !== d.idVisit) return;       // user memilih visit lain
+
+    $('ck-form-visit').value = d.idVisit;
+    if (d.tanggal) $('ck-form-date').value = d.tanggal;
+    if (Array.isArray(d.kategori) && d.kategori.length) {
+      $('ck-cat-cinema').checked   = d.kategori.includes('Cinema');
+      $('ck-cat-fnb').checked      = d.kategori.includes('F&B') || d.kategori.includes('FnB');
+      $('ck-cat-premiere').checked = d.kategori.includes('Premiere');
+    }
+    (d.items || []).forEach(it => {
+      CHECKLIST_ANSWERS[it.idItem] = { score: it.score, isNA: !!it.isNA, catatan: it.catatan || '' };
+    });
+    toast('Draft sebelumnya dipulihkan.', 'info');
+  } catch (e) { /* draft opsional */ }
+}
+
+// ─── SUBMIT ──────────────────────────────────────────────────────────────────
+async function submitChecklistFinal() {
+  if (CHECKLIST_SUBMITTING) return;
+
+  const idVisit = $('ck-form-visit').value;
+  const outlet  = $('ck-form-outlet').value;
+  if (!idVisit || !outlet) {
+    toast('Pilih kunjungan In Progress yang akan diperiksa.', 'warning');
+    return;
+  }
+  if (CHECKLIST_ITEMS_RAW.length === 0) {
+    toast('Tidak ada item checklist untuk dikirim.', 'warning');
+    return;
+  }
+
+  const unAnswered = CHECKLIST_ITEMS_RAW.filter(it => {
+    const ans = CHECKLIST_ANSWERS[it.idCheck];
+    return !ans || (!ans.isNA && ans.score == null);
+  });
+  if (unAnswered.length > 0) {
+    const first = unAnswered[0];
+    toast(`Masih ada ${unAnswered.length} item belum dinilai (atau di-set N/A).`, 'warning');
+    const row = document.getElementById('row-' + first.idCheck);
+    if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+  const allNA = CHECKLIST_ITEMS_RAW.every(it => CHECKLIST_ANSWERS[it.idCheck] && CHECKLIST_ANSWERS[it.idCheck].isNA);
+  if (allNA) {
+    toast('Minimal satu item harus dinilai (tidak seluruhnya N/A).', 'warning');
+    return;
+  }
+
+  let pdfData = null;
+  try {
+    pdfData = await readPdfInput($('ck-pdf-file'));
+  } catch (e) {
+    toast(e.message, 'warning');
+    return;
+  }
+
+  confirmDialog(
+    'Kirim Hasil Pemeriksaan',
+    `Kirim hasil pemeriksaan <b>${esc(outlet)}</b>?<br><span class="text-muted">Status kunjungan akan menjadi <b>Completed</b> dan checklist tidak dapat dikirim ulang.</span>`,
+    async () => {
+      CHECKLIST_SUBMITTING = true;
+      const btn = $('btn-submit-checklist');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Mengirim…';
+
+      const payload = {
+        idVisit: idVisit,
+        outlet: outlet,
+        tanggal: $('ck-form-date').value,
+        kategori: _selectedCategories(),
+        items: CHECKLIST_ITEMS_RAW.map(it => {
+          const ans = CHECKLIST_ANSWERS[it.idCheck] || {};
+          return {
+            idItem: it.idCheck,
+            score: ans.isNA ? null : ans.score,
+            isNA: !!ans.isNA,
+            catatanTemuan: ans.catatan || ''
+          };
+        }),
+        pdf: pdfData
+      };
+
+      try {
+        const res = await call('apiSubmitChecklist', APP_STATE.token, payload);
+        toast(`Pemeriksaan tersimpan — Grade ${res.grade} (${fmtScore(res.gradePercentage)}%). Kunjungan selesai.`, 'success');
+        if (res.warning) toast(res.warning, 'warning', 8000);
+        else if (!pdfData) toast('PDF berita acara belum dilampirkan — unggah melalui Riwayat → Rincian.', 'info', 6000);
+        CHECKLIST_ANSWERS = {};
+        cancelChecklistForm();
+        await loadChecklistList();
+      } catch (err) {
+        toast('Gagal mengirim checklist: ' + err.message, 'error');
+      } finally {
+        CHECKLIST_SUBMITTING = false;
+        btn.disabled = false;
+        btn.textContent = 'Kirim Hasil Pemeriksaan';
+      }
+    }
+  );
+}
+
+// ─── RINCIAN ─────────────────────────────────────────────────────────────────
+async function viewChecklistDetailById(id) {
+  try {
+    const data = await call('apiGetChecklistDetail', APP_STATE.token, id);
+    const h = data.header || {};
+    const items = data.details || [];
+
+    $('mod-ckd-outlet').textContent = h.outlet || 'Checklist Detail';
+    $('mod-ckd-info').textContent = `${formatDate(h.tanggal)} | QC: ${h.qcArea} | Skor: ${fmtScore(h.gradePercentage)}% (${h.grade})`;
+
+    const html = `
+      <div class="row g-2 mb-3 p-3 bg-light rounded-3">
+        <div class="col-6"><span class="text-muted small">Kategori:</span> <b>${esc(h.kategori)}</b></div>
+        <div class="col-6"><span class="text-muted small">Total Skor:</span> <b>${h.totalScoreAktual} / ${h.totalScoreMax}</b></div>
+      </div>
+      <div class="table-responsive" style="max-height:400px; overflow-y:auto;">
+        <table class="table table-sm table-hover align-middle mb-0">
+          <thead class="bg-light">
+            <tr><th>No</th><th>Item Pengecekan</th><th>Skor</th><th>Catatan Temuan</th></tr>
+          </thead>
+          <tbody>
+            ${items.map((it, idx) => {
+              const ratio = it.scoreMax ? it.score / it.scoreMax : 0;
+              const cls = ratio >= 0.8 ? 'bg-success' : (ratio <= 0.4 ? 'bg-danger' : 'bg-warning text-dark');
+              return `
+              <tr>
+                <td>${idx + 1}</td>
+                <td>
+                  <div class="fw-semibold">${esc(it.namaItem)}</div>
+                  <div class="small text-muted">${esc(it.kategori)}</div>
+                </td>
+                <td>${it.isNA ? '<span class="badge bg-secondary">N/A</span>' : `<span class="badge ${cls}">${it.score} / ${it.scoreMax}</span>`}</td>
+                <td class="small text-muted">${esc(it.catatanTemuan || it.keterangan || '-')}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>`;
+
+    $('mod-ckd-body').innerHTML = html;
+
+    const doc = data.dokumen;
+    let docHtml = doc
+      ? `<button class="btn btn-sm btn-primary" onclick="openDocument('${esc(doc.idDocument)}')">Lihat Berita Acara PDF</button>`
+      : `<span class="badge bg-warning-subtle text-warning-emphasis me-2">${h.statusDokumen === 'Failed' ? 'Upload PDF gagal' : 'PDF belum diunggah'}</span>`;
+    if (data.canUpload) {
+      docHtml += `
+        <div class="d-flex gap-2 align-items-center mt-2">
+          <input type="file" class="form-control form-control-sm" id="ckd-pdf-upload" accept="application/pdf" style="max-width:260px;">
+          <button class="btn btn-sm btn-outline-primary" id="ckd-pdf-btn" onclick="uploadChecklistPdf('${esc(h.idChecklist)}')">${doc ? 'Ganti PDF' : 'Unggah PDF'}</button>
+        </div>`;
+    }
+    $('mod-ckd-pdf-link').innerHTML = docHtml;
+
+    openModal('modal-checklist-detail');
+  } catch (err) {
+    toast('Gagal memuat detail checklist: ' + err.message, 'error');
+  }
+}
+
+async function uploadChecklistPdf(idChecklist) {
+  let pdf;
+  try { pdf = await readPdfInput($('ckd-pdf-upload')); } catch (e) { toast(e.message, 'warning'); return; }
+  if (!pdf) { toast('Pilih berkas PDF terlebih dahulu.', 'warning'); return; }
+  await withButton($('ckd-pdf-btn'), 'Mengunggah…', async () => {
+    try {
+      await call('apiUploadChecklistPDF', APP_STATE.token, idChecklist, pdf);
+      toast('PDF berhasil diunggah.', 'success');
+      await viewChecklistDetailById(idChecklist);
+      loadChecklistList();
+    } catch (err) {
+      toast('Gagal mengunggah PDF: ' + err.message, 'error');
+    }
+  });
+}
+</script>

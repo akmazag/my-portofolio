@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>QC Management System — Integrated Quality Control</title>
+
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Bootstrap 5.3.3 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Chart.js 4.4.3 -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+
+  <!-- Modular CSS Styling -->
+  <?!= include('Styles'); ?>
+</head>
+<body>
+
+  <!-- ── 1. GLOBAL LOADING SPINNER OVERLAY ── -->
+  <div id="loader-overlay" class="loader-overlay" style="display:none; position:fixed; inset:0; background:rgba(23,37,84,0.45); z-index:9999; align-items:center; justify-content:center; backdrop-filter:blur(2px);">
+    <div class="card p-4 border-0 shadow-lg text-center" style="border-radius:16px;">
+      <div class="spinner-border text-primary mb-2 mx-auto" role="status" style="width:2.5rem; height:2.5rem;"></div>
+      <div class="small fw-semibold text-secondary">Memproses data server…</div>
+    </div>
+  </div>
+
+  <!-- ── 2. GLOBAL TOAST CONTAINER ── -->
+  <div id="toast-container" style="position:fixed; top:20px; right:20px; z-index:99999; display:flex; flex-direction:column; gap:8px;"></div>
+
+  <!-- ── 3. MODAL KONFIRMASI UMUM ── -->
+  <div class="modal fade" id="modal-confirm" tabindex="-1" aria-hidden="true" style="z-index:10000;">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <div class="modal-content border-0 shadow-lg" style="border-radius:12px;">
+        <div class="modal-header border-0 pb-0">
+          <h6 class="modal-title fw-bold" id="confirm-title" style="color:#172554;">Konfirmasi</h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body py-3 small text-secondary" id="confirm-body">
+          Apakah Anda yakin ingin melanjutkan tindakan ini?
+        </div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-sm btn-light border" data-bs-dismiss="modal">Batal</button>
+          <button type="button" class="btn btn-sm btn-primary px-3" id="confirm-btn-yes">Ya, Lanjutkan</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 3b. MODAL PDF VIEWER (dokumen privat, dibuka via backend) ── -->
+  <div class="modal fade" id="modal-pdf-viewer" tabindex="-1" aria-hidden="true" style="z-index:10001;">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-fullscreen-sm-down">
+      <div class="modal-content border-0 shadow-lg" style="border-radius:14px; overflow:hidden;">
+        <div class="modal-header py-2">
+          <h6 class="modal-title fw-bold text-truncate" id="pdf-viewer-title" style="color:#172554;">Dokumen PDF</h6>
+          <div class="ms-auto d-flex gap-2 align-items-center">
+            <a id="pdf-viewer-download" class="btn btn-sm btn-outline-primary" download="dokumen.pdf">⬇ Unduh</a>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+          </div>
+        </div>
+        <div class="modal-body p-0" style="height:75vh; background:#F1F5F9;">
+          <iframe id="pdf-viewer-frame" title="Pratinjau PDF" style="width:100%; height:100%; border:0;"></iframe>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 3c. MODAL PANDUAN (Instruction Popup) ── -->
+  <div class="modal fade" id="modal-help" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content border-0 shadow-lg" style="border-radius:14px;">
+        <div class="modal-header">
+          <h6 class="modal-title fw-bold" id="help-title" style="color:#172554;">Panduan</h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+        </div>
+        <div class="modal-body small" id="help-body"></div>
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-sm btn-primary px-3" data-bs-dismiss="modal">Mengerti</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 4. SCREEN LOGIN PROFESIONAL (FIGMA-INSPIRED SAAS) ── -->
+  <div id="login-screen" class="login-container" style="min-height:100vh; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg, #172554 0%, #1e40af 100%); padding:20px;">
+    <div class="card border-0 shadow-xl" style="width:100%; max-width:420px; border-radius:18px; overflow:hidden; background:#fff;">
+      <div class="p-4 p-md-5">
+        <!-- Logo & Brand Header -->
+        <div class="text-center mb-4">
+          <div class="d-inline-flex align-items-center justify-content-center mb-3" style="width:58px; height:58px; border-radius:14px; background:#172554; color:#fff;">
+            <svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <path d="m9 12 2 2 4-4"/>
+            </svg>
+          </div>
+          <h4 class="fw-bold mb-1" style="color:#172554; letter-spacing:-0.5px;">QC Management</h4>
+          <div class="small text-muted">Integrated Quality Control &amp; Performance</div>
+        </div>
+
+        <!-- Alert Error Login -->
+        <div id="lg-error" class="alert alert-danger py-2 small d-none mb-3" role="alert"></div>
+
+        <!-- Form Login -->
+        <form onsubmit="doLogin(event)">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold text-secondary mb-1">Username Akun</label>
+            <input type="text" class="form-control" id="lg-user" placeholder="Masukkan username" required autocomplete="username">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-semibold text-secondary mb-1">Password</label>
+            <div class="input-group">
+              <input type="password" class="form-control" id="lg-pass" placeholder="••••••••" required autocomplete="current-password">
+              <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility()">
+                <span id="lg-pass-eye">👁️</span>
+              </button>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold mb-3 shadow-xs" id="lg-btn" style="background:#172554; border-color:#172554; border-radius:8px;">
+            Masuk ke Sistem
+          </button>
+        </form>
+
+        <div class="text-center small text-muted" style="font-size:0.75rem;">
+          One Platform. One Standard. Measurable Quality.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 5. SHELL APLIKASI (SIDEBAR + TOPBAR + MAIN VIEWS) ── -->
+  <div id="app-shell" style="display:none; height:100vh; overflow:hidden;" class="d-flex flex-row">
+
+    <!-- ── SIDEBAR NAVIGASI KIRI ── -->
+    <div id="sidebar-backdrop" class="sidebar-backdrop" onclick="toggleMobileSidebar(false)"></div>
+    <aside id="app-sidebar" style="width:260px; min-width:260px; background:#172554; color:#fff; display:flex; flex-direction:column; height:100vh; z-index:1000;" class="shadow-sm app-sidebar">
+      <!-- Brand Logo -->
+      <div class="p-3 border-bottom d-flex align-items-center gap-3" style="border-color:rgba(255,255,255,0.1) !important;">
+        <div class="d-flex align-items-center justify-content-center" style="width:36px; height:36px; border-radius:8px; background:#3B82F6; color:#fff;">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <path d="m9 12 2 2 4-4"/>
+          </svg>
+        </div>
+        <div>
+          <div class="fw-bold lh-1" style="font-size:1rem; letter-spacing:-0.3px;">QC System</div>
+          <div class="small opacity-50" style="font-size:0.7rem;">Enterprise v2.0</div>
+        </div>
+      </div>
+
+      <!-- User Profile Pill -->
+      <div class="p-3 mx-2 my-2 rounded-3 d-flex align-items-center gap-2" style="background:rgba(255,255,255,0.06);">
+        <div id="user-avatar-initial"></div>
+        <div class="overflow-hidden" style="flex:1;">
+          <div class="fw-semibold text-truncate small" id="user-profile-name" style="color:#fff;">Pengguna</div>
+          <div class="small opacity-75" id="user-profile-role" style="font-size:0.75rem; color:#93C5FD;">Role</div>
+        </div>
+      </div>
+
+      <!-- Navigation Menu List -->
+      <div class="flex-grow-1 overflow-y-auto px-2 py-2">
+        <ul class="nav flex-column" id="sidebar-nav-list">
+          <!-- Populated by Auth.html / buildSidebarNav -->
+        </ul>
+      </div>
+
+      <!-- Sidebar Footer / Logout -->
+      <div class="p-3 border-top" style="border-color:rgba(255,255,255,0.1) !important;">
+        <button class="btn btn-sm btn-outline-light w-100 d-flex align-items-center justify-content-center gap-2 py-2" onclick="logout(false)">
+          <span>🚪</span>
+          <span>Keluar Akun</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- ── CONTENT WRAPPER (TOPBAR + VIEWS) ── -->
+    <div class="d-flex flex-column flex-grow-1 h-100 overflow-hidden" style="background:#F5F7FB;">
+      
+      <!-- Topbar Header -->
+      <header class="d-flex align-items-center justify-content-between px-4 bg-white border-bottom shadow-xs" style="height:60px; min-height:60px; z-index:100;">
+        <div class="d-flex align-items-center gap-3">
+          <button class="btn btn-sm btn-light border d-md-none" onclick="toggleMobileSidebar()" aria-label="Menu">☰</button>
+          <div class="fw-bold text-dark text-truncate" style="font-size:1.05rem; max-width:52vw;" id="page-title-breadcrumb">Dashboard Operasional</div>
+        </div>
+        <div class="d-flex align-items-center gap-2 gap-md-3">
+          <button class="btn btn-sm btn-light border" onclick="openHelp()" title="Panduan modul ini" aria-label="Panduan">❔<span class="d-none d-lg-inline ms-1">Panduan</span></button>
+          <div class="small text-muted d-none d-sm-block" id="topbar-date-display"></div>
+          <div class="d-flex align-items-center gap-2 border rounded-pill py-1 px-3 bg-light">
+            <span class="d-inline-block rounded-circle bg-success" style="width:8px; height:8px;"></span>
+            <span class="small fw-semibold text-dark text-truncate" id="topbar-user-name" style="max-width:140px;">User</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Main Content Area -->
+      <main class="flex-grow-1 overflow-y-auto p-3 p-md-4" id="main-content-area">
+        <div id="scope-empty-banner" class="alert alert-warning small d-none" role="alert">
+          ⚠️ Akun Anda belum memiliki pemetaan scope outlet (Nama / Kode Outlet / AksesData tidak cocok dengan master KODE).
+          Data tidak ditampilkan demi keamanan. Hubungi Admin QC Office.
+        </div>
+        <!-- Inklusi Seluruh Modul Tampilan -->
+        <?!= include('Dashboard'); ?>
+        <?!= include('Organization'); ?>
+        <?!= include('Master'); ?>
+        <?!= include('MasterUser'); ?>
+        <?!= include('Cleaning'); ?>
+        <?!= include('Visit'); ?>
+        <?!= include('Checklist'); ?>
+        <?!= include('Performance'); ?>
+        <?!= include('Settings'); ?>
+      </main>
+
+    </div>
+  </div>
+
+  <!-- Bootstrap 5 JS Bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Modular Scripts Inklusi -->
+  <?!= include('Components'); ?>
+  <?!= include('Auth'); ?>
+
+  <script>
+    function togglePasswordVisibility() {
+      const pass = $('lg-pass');
+      const eye  = $('lg-pass-eye');
+      if (pass.type === 'password') {
+        pass.type = 'text';
+        eye.textContent = '🙈';
+      } else {
+        pass.type = 'password';
+        eye.textContent = '👁️';
+      }
+    }
+
+    function toggleMobileSidebar(force) {
+      const sb = $('app-sidebar');
+      if (!sb) return;
+      const open = typeof force === 'boolean' ? force : !sb.classList.contains('open');
+      sb.classList.toggle('open', open);
+      const bd = $('sidebar-backdrop');
+      if (bd) bd.classList.toggle('show', open);
+    }
+
+    // Set tanggal hari ini di topbar
+    window.addEventListener('DOMContentLoaded', () => {
+      if ($('topbar-date-display')) {
+        $('topbar-date-display').textContent = formatDate(today());
+      }
+    });
+  </script>
+</body>
+</html>

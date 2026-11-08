@@ -1,0 +1,347 @@
+<!-- Performance.html — QC Management System: Performance & Grading Dashboard -->
+<div id="view-performance" class="module-view" style="display:none;">
+
+  <!-- Filter Bar Performance -->
+  <div class="card p-3 border-0 shadow-xs mb-3 bg-white">
+    <div class="row g-2 align-items-end">
+      <div class="col-md-3">
+        <label class="form-label small fw-semibold text-secondary mb-1">Periode Dari</label>
+        <input type="date" class="form-control form-control-sm" id="perf-filter-from">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small fw-semibold text-secondary mb-1">Periode Sampai</label>
+        <input type="date" class="form-control form-control-sm" id="perf-filter-to">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small fw-semibold text-secondary mb-1">Area</label>
+        <select class="form-select form-select-sm" id="perf-filter-area">
+          <option value="">Semua Area</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small fw-semibold text-secondary mb-1">Class Outlet</label>
+        <select class="form-select form-select-sm" id="perf-filter-class">
+          <option value="">Semua Class</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-sm btn-dark w-100" onclick="loadPerformance()">Terapkan Filter</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 6 KPI CARDS RINGKASAN PERFORMA ── -->
+  <div class="row g-2 mb-4" id="perf-summary-cards">
+    <!-- Populated by renderPerformance -->
+  </div>
+
+  <!-- ── 2 GRAFIK ANALISIS: BAR RANKING & DOUGHNUT DISTRIBUSI ── -->
+  <div class="row g-3 mb-4">
+    <!-- Bar Horizontal: Peringkat QC Area -->
+    <div class="col-lg-7">
+      <div class="card p-4 border-0 shadow-xs bg-white h-100">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <div class="fw-bold" style="color:#172554;">Peringkat Nilai Rata-rata QC Area</div>
+          <span class="small text-muted">Skala 0 - 100%</span>
+        </div>
+        <div style="height: 280px;"><canvas id="chart-perf-qc"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Doughnut: Distribusi Grade (A–E) -->
+    <div class="col-lg-5">
+      <div class="card p-4 border-0 shadow-xs bg-white h-100">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <div class="fw-bold" style="color:#172554;">Distribusi Grade Mutu</div>
+          <span class="small text-muted">A (≥90%), B (≥80%), C (≥70%), D (≥60%), E (&lt;60%)</span>
+        </div>
+        <div style="height: 280px;"><canvas id="chart-perf-distribution"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TREN SKOR BULANAN (LINE CHART) ── -->
+  <div class="card p-4 border-0 shadow-xs bg-white mb-4">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <div class="fw-bold" style="color:#172554;">Tren Nilai Rata-rata Kunjungan (6 Bulan Terakhir)</div>
+      <span class="badge bg-light text-secondary border">Monitoring Historis</span>
+    </div>
+    <div style="height: 240px;"><canvas id="chart-perf-trend"></canvas></div>
+  </div>
+
+  <!-- ── TABEL RANKING LENGKAP & DETAIL PERFORMA ── -->
+  <div class="card p-4 border-0 shadow-xs bg-white mb-4">
+    <div class="fw-bold mb-3" style="color:#172554;">Tabel Evaluasi &amp; Ranking Kinerja QC Area</div>
+    <div id="perf-ranking-table-box"></div>
+  </div>
+
+  <!-- ── 2 PANEL: OUTLET SKOR TERENDAH & TEMUAN PALING SERING ── -->
+  <div class="row g-3 mb-4">
+    <!-- Outlet Skor Terendah -->
+    <div class="col-lg-6">
+      <div class="card p-4 border-0 shadow-xs bg-white h-100">
+        <div class="fw-bold text-danger mb-2">5 Outlet dengan Skor Rata-rata Terendah</div>
+        <div class="small text-muted mb-3">Memerlukan perhatian khusus dan perbaikan operasional prioritas.</div>
+        <div id="perf-lowest-outlets-box"></div>
+      </div>
+    </div>
+
+    <!-- Temuan Paling Sering -->
+    <div class="col-lg-6">
+      <div class="card p-4 border-0 shadow-xs bg-white h-100">
+        <div class="fw-bold text-warning mb-2">Temuan Item dengan Skor Terendah (Top Deficiencies)</div>
+        <div class="small text-muted mb-3">Evaluasi item checklist yang paling sering mendapatkan nilai rendah (1 atau 2).</div>
+        <div id="perf-top-findings-box"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── MODAL DETAIL PERFORMA QC AREA ── -->
+<div class="modal fade" id="modal-perf-qc-detail" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header" style="background:#172554; color:#fff;">
+        <div class="d-flex align-items-center gap-3">
+          <div id="mpq-avatar" class="avatar-circle"></div>
+          <div>
+            <h5 class="modal-title mb-0" id="mpq-name">Detail Personel QC</h5>
+            <span class="small opacity-75" id="mpq-area-info"></span>
+          </div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4" id="mpq-body">
+        <!-- Populated -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Tutup</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/**
+ * Performance Controller Logic
+ */
+let PERF_CACHE = null;
+
+async function loadPerformance() {
+  const fFrom = $('perf-filter-from');
+  const fTo   = $('perf-filter-to');
+  if (fFrom && !fFrom.value) fFrom.value = firstOfMonth();
+  if (fTo && !fTo.value) fTo.value = today();
+
+  populateSelect('perf-filter-area', APP_STATE.areas || [], null, null, true, 'Semua Area');
+  populateSelect('perf-filter-class', APP_STATE.kelasList || [], null, null, true, 'Semua Class');
+
+  showSkeleton('perf-ranking-table-box', 4);
+  try {
+    const data = await call('apiGrading', APP_STATE.token, {
+      from: fFrom.value,
+      to: fTo.value,
+      area: $('perf-filter-area').value,
+      kelas: $('perf-filter-class').value
+    });
+    PERF_CACHE = data;
+    renderPerformance(data);
+  } catch (err) {
+    toast('Gagal memuat dashboard performa: ' + err.message, 'error');
+  }
+}
+
+function renderPerformance(data) {
+  const sum = data.summary || {};
+  const cards = [
+    { label: 'Total Pemeriksaan', val: sum.total || 0, icon: '📋', color: '#172554' },
+    { label: sum.method === 'average' ? 'Rata-rata Skor (avg %)' : 'Skor (Σ aktual / Σ maks)', val: sum.total ? fmtScore(sum.avgScore) + '%' : '-', icon: '⭐', color: '#16A34A', sub: gradeBadgeHtml(sum.overallGrade) },
+    { label: 'Visit Achievement', val: fmtPercent(sum.visitAchievement || 0, 1), icon: '🎯', color: '#3B82F6', sub: '<span class="kpi-sub">outlet unik dikunjungi (periode filter)</span>' },
+    { label: 'Grade A / B', val: ((sum.gradeDistribution && sum.gradeDistribution.A) || 0) + ' / ' + ((sum.gradeDistribution && sum.gradeDistribution.B) || 0), icon: '🟢', color: '#16A34A' },
+    { label: 'Tanpa PDF', val: sum.pendingEvidence || 0, icon: '📎', color: '#F59E0B' },
+    { label: 'Grade C / D / E', val: ((sum.gradeDistribution && sum.gradeDistribution.C) || 0) + ((sum.gradeDistribution && sum.gradeDistribution.D) || 0) + ((sum.gradeDistribution && sum.gradeDistribution.E) || 0), icon: '⚠️', color: '#DC2626' }
+  ];
+
+  let cHtml = '';
+  cards.forEach(c => {
+    cHtml += `
+      <div class="col-6 col-md-4 col-xl-2">
+        <div class="card p-3 border-0 shadow-xs h-100 bg-white" style="border-radius:10px;">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="small text-muted fw-semibold" style="font-size:0.75rem;">${esc(c.label)}</span>
+            <span>${c.icon}</span>
+          </div>
+          <div class="fw-bold" style="font-size:1.5rem; color:${c.color}; line-height:1.2;">${esc(c.val)}</div>
+          ${c.sub ? `<div class="mt-2">${c.sub}</div>` : ''}
+        </div>
+      </div>`;
+  });
+  if ($('perf-summary-cards')) $('perf-summary-cards').innerHTML = cHtml;
+
+  // 1. Chart Ranking QC Area (Horizontal Bar)
+  const byQC = data.byQCArea || [];
+  const qcLabels = byQC.map(q => q.nama);
+  const qcScores = byQC.map(q => q.avgScore);
+  const qcColors = byQC.map(q => q.avgScore >= 90 ? '#16A34A' : (q.avgScore >= 80 ? '#22C55E' : (q.avgScore >= 70 ? '#F59E0B' : '#DC2626')));
+  barChart('chart-perf-qc', qcLabels, qcScores, qcColors, true);
+
+  // 2. Chart Distribusi Grade (Doughnut)
+  const dist = sum.gradeDistribution || { A:0, B:0, C:0, D:0, E:0 };
+  doughnutChart(
+    'chart-perf-distribution',
+    ['Grade A', 'Grade B', 'Grade C', 'Grade D', 'Grade E'],
+    [dist.A || 0, dist.B || 0, dist.C || 0, dist.D || 0, dist.E || 0],
+    ['#16A34A', '#22C55E', '#F59E0B', '#F97316', '#DC2626']
+  );
+
+  // 3. Line Chart Tren Bulanan
+  const trend = data.monthlyTrend || [];
+  const trendLabels = trend.map(t => formatMonth(t.bulan));
+  const trendScores = trend.map(t => t.avgScore);
+  destroyChart('chart-perf-trend');
+  const trendCanvas = $('chart-perf-trend');
+  if (trendCanvas && window.Chart) {
+    CHARTS['chart-perf-trend'] = new Chart(trendCanvas, {
+      type: 'line',
+      data: {
+        labels: trendLabels,
+        datasets: [{
+          label: 'Nilai Rata-rata (%)',
+          data: trendScores,
+          borderColor: '#3B82F6',
+          backgroundColor: 'rgba(59, 130, 246, 0.1)',
+          fill: true,
+          tension: 0.3,
+          pointRadius: 5
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: { min: 0, max: 100, grid: { color: '#F1F5F9' } },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  // 4. Tabel Ranking QC Area
+  const rankCols = [
+    { key: 'rank', label: 'Peringkat', render: (r, idx) => idx === 0 ? '🥇 #1' : (idx === 1 ? '🥈 #2' : (idx === 2 ? '🥉 #3' : `#${idx + 1}`)) },
+    { key: 'nama', label: 'Nama QC Area', render: r => `<div class="d-flex align-items-center gap-2">${avatarHtml(r.nama, 'sm')}<span class="fw-bold text-dark">${esc(r.nama)}</span></div>` },
+    { key: 'visitCount', label: 'Jumlah Inspeksi', render: r => `${r.visitCount} checklist` },
+    { key: 'avgScore', label: 'Rata-rata Skor', render: r => `<span class="fw-bold text-success">${fmtScore(r.avgScore)}%</span>` },
+    { key: 'grade', label: 'Grade Evaluasi', render: r => gradeBadgeHtml(r.grade) },
+    { key: 'visitAchievement', label: 'Visit Achievement', render: r => r.totalOutlet
+        ? `<div class="d-flex align-items-center gap-2" style="min-width:130px;"><div class="progress flex-grow-1" style="height:6px;"><div class="progress-bar ${r.visitAchievement >= 100 ? 'bg-success' : 'bg-primary'}" style="width:${Math.min(r.visitAchievement, 100)}%;"></div></div><span class="small fw-bold">${r.visitAchievement}%</span></div><div class="kpi-sub">${r.visitedOutlet}/${r.totalOutlet} outlet</div>`
+        : '<span class="small text-muted">-</span>' },
+    { 
+      key: 'aksi', 
+      label: 'Aksi', 
+      render: r => `<button class="btn btn-sm btn-outline-primary py-1 px-2" style="font-size:0.75rem;" onclick="openPerfQCDetail('${esc(r.nama)}')">Lihat Rincian →</button>` 
+    }
+  ];
+  buildTable('perf-ranking-table-box', rankCols, byQC, { emptyText: 'Tidak ada data pemeringkatan.' });
+
+  // 5. 5 Outlet Skor Terendah
+  const lowOutlets = data.lowestScoreOutlets || [];
+  const lowCols = [
+    { key: 'nama', label: 'Nama Outlet', render: r => `<span class="fw-bold text-danger">${esc(r.nama)}</span>` },
+    { key: 'avgScore', label: 'Rata-rata Skor', render: r => `<span class="fw-bold">${fmtScore(r.avgScore)}%</span>` },
+    { key: 'visitCount', label: 'Frekuensi Diperiksa', render: r => `${r.visitCount} kali` },
+    { key: 'grade', label: 'Grade', render: r => gradeBadgeHtml(r.grade) }
+  ];
+  buildTable('perf-lowest-outlets-box', lowCols, lowOutlets, { emptyText: 'Tidak ada data outlet berskor rendah.' });
+
+  // 6. Temuan Paling Sering
+  const findings = data.topFindings || [];
+  const findCols = [
+    { key: 'namaItem', label: 'Item Checklist', render: r => `<div class="fw-semibold text-dark">${esc(r.namaItem)}</div><div class="small text-muted">${esc(r.kategori)}</div>` },
+    { key: 'avgScore', label: 'Rata-rata Skor', render: r => `<span class="badge ${r.avgScore <= 2.5 ? 'bg-danger' : 'bg-warning'} text-white">${r.avgScore} / 5</span>` },
+    { key: 'failRate', label: 'Tingkat Defisiensi', render: r => `<span class="fw-bold text-danger">${r.failRate}%</span>` }
+  ];
+  buildTable('perf-top-findings-box', findCols, findings, { emptyText: 'Tidak ada item dengan catatan temuan buruk.' });
+}
+
+async function openPerfQCDetail(namaQC) {
+  try {
+    const res = await call('apiGradingDetail', APP_STATE.token, namaQC, { from: $('perf-filter-from').value, to: $('perf-filter-to').value });
+    const p = res.personel || {};
+    const k = res.kpi || {};
+
+    $('mpq-avatar').innerHTML = avatarHtml(namaQC, 'lg');
+    $('mpq-name').textContent = namaQC;
+    $('mpq-area-info').textContent = `${p.jabatan || 'QC Area'} | Wilayah: ${p.area} (${p.region}) | ${p.totalOutlet} Outlet`;
+
+    let html = `
+      <div class="row g-2 mb-3">
+        <div class="col-3">
+          <div class="p-2 border rounded bg-light text-center">
+            <div class="small text-muted">Visit Achievement</div>
+            <div class="fw-bold fs-5 text-primary">${k.visitAchievement}%</div>
+          </div>
+        </div>
+        <div class="col-3">
+          <div class="p-2 border rounded bg-light text-center">
+            <div class="small text-muted">Visit Selesai / Jadwal</div>
+            <div class="fw-bold fs-5 text-success">${k.completedVisit}/${k.totalVisit}</div>
+          </div>
+        </div>
+        <div class="col-3">
+          <div class="p-2 border rounded bg-light text-center">
+            <div class="small text-muted">Rata-rata Skor</div>
+            <div class="fw-bold fs-5 text-success">${k.checklistCount ? fmtScore(k.avgScore) + '%' : '-'}</div>
+          </div>
+        </div>
+        <div class="col-3">
+          <div class="p-2 border rounded bg-light text-center">
+            <div class="small text-muted">Grade Mutu</div>
+            <div class="mt-1">${gradeBadgeHtml(k.grade)}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="fw-bold text-secondary mb-2 small">Distribusi Tanggung Jawab Outlet:</div>
+      <div class="table-responsive mb-3" style="max-height:160px; overflow-y:auto;">
+        <table class="table table-sm table-hover mb-0">
+          <thead class="bg-light"><tr><th>Outlet</th><th>Class</th><th>Area</th><th>Status Visit</th></tr></thead>
+          <tbody>
+            ${(res.outletDistribution || []).map(o => `
+              <tr>
+                <td class="fw-semibold">${esc(o.nama)}</td>
+                <td>${esc(o.kelas)}</td>
+                <td>${esc(o.area)}</td>
+                <td>${o.isVisited ? `<span class="badge bg-success">Sudah (${formatDate(o.terakhir)})</span>` : '<span class="badge bg-danger">Belum Dikunjungi</span>'}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="fw-bold text-secondary mb-2 small">Riwayat Pemeriksaan Checklist Terakhir:</div>
+      <div class="table-responsive" style="max-height:180px; overflow-y:auto;">
+        <table class="table table-sm table-hover mb-0">
+          <thead class="bg-light"><tr><th>Tanggal</th><th>Outlet</th><th>Kategori</th><th>Skor</th><th>Grade</th></tr></thead>
+          <tbody>
+            ${(res.checklists || []).map(c => `
+              <tr>
+                <td>${formatDate(c.tanggal)}</td>
+                <td class="fw-semibold">${esc(c.outlet)}</td>
+                <td>${esc(c.kategori)}</td>
+                <td>${c.score}%</td>
+                <td>${gradeBadgeHtml(c.grade)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>`;
+
+    $('mpq-body').innerHTML = html;
+    openModal('modal-perf-qc-detail');
+  } catch (err) {
+    toast('Gagal memuat rincian performa QC: ' + err.message, 'error');
+  }
+}
+</script>

@@ -1,0 +1,384 @@
+<!-- MasterUser.html — QC Management System: Master User (Admin / Admin QC Office) -->
+<div id="view-users" class="module-view" style="display:none;">
+
+  <!-- Header & aksi -->
+  <div class="d-flex flex-wrap align-items-center justify-content-between mb-3 gap-2">
+    <div>
+      <div class="fw-bold" style="color:#172554; font-size:1.05rem;">Master User &amp; Hak Akses</div>
+      <div class="small text-muted">Kelola akun: QC Office (Admin), QC Area, Specialist/Kabag, AM, RM, dan Outlet.</div>
+    </div>
+    <button class="btn btn-sm btn-primary px-3 py-2" onclick="openMuForm('')">+ Tambah User</button>
+  </div>
+
+  <!-- Kartu ringkasan -->
+  <div class="row g-2 mb-3" id="mu-summary"></div>
+
+  <!-- Filter -->
+  <div class="card p-3 border-0 shadow-xs mb-3 bg-white">
+    <div class="row g-2 align-items-end">
+      <div class="col-md-5">
+        <label class="form-label small fw-semibold text-secondary mb-1">Pencarian</label>
+        <input type="text" class="form-control form-control-sm" id="mu-search" placeholder="Cari nama / username / outlet…" oninput="renderMuTable()">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small fw-semibold text-secondary mb-1">Role</label>
+        <select class="form-select form-select-sm" id="mu-filter-role" onchange="renderMuTable()">
+          <option value="">Semua Role</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small fw-semibold text-secondary mb-1">Status</label>
+        <select class="form-select form-select-sm" id="mu-filter-status" onchange="renderMuTable()">
+          <option value="">Semua</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </div>
+      <div class="col-md-2 d-flex gap-2">
+        <button class="btn btn-sm btn-outline-secondary w-100" onclick="resetMuFilters()">Reset</button>
+        <button class="btn btn-sm btn-dark w-100" onclick="loadMasterUser()">Refresh</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabel -->
+  <div class="card border-0 shadow-xs bg-white">
+    <div id="mu-table-box"></div>
+  </div>
+</div>
+
+<!-- ── MODAL TAMBAH / EDIT USER ── -->
+<div class="modal fade" id="modal-mu-form" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-md">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header" style="background:#172554; color:#fff;">
+        <h5 class="modal-title mb-0" id="mu-form-title">Tambah User</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form onsubmit="saveMuForm(event)" autocomplete="off">
+        <div class="modal-body p-4">
+          <input type="hidden" id="mu-f-orig">
+
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Username <span class="text-danger">*</span></label>
+            <input type="text" class="form-control form-control-sm" id="mu-f-username" required placeholder="huruf, angka, titik, underscore (min. 4)" autocomplete="off">
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Nama Lengkap <span class="text-danger">*</span></label>
+            <input type="text" class="form-control form-control-sm" id="mu-f-nama" required placeholder="Nama sesuai data personel" oninput="previewMuScope()">
+            <div class="form-text" style="font-size:0.75rem;">Untuk RM / AM / QC Area / Kabag, nama harus sama dengan nama di Master Outlet / Tim QC Area (dipakai untuk menentukan cakupan data).</div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-semibold" id="mu-f-pass-label">Password <span class="text-danger">*</span></label>
+            <div class="input-group input-group-sm">
+              <input type="text" class="form-control" id="mu-f-pass" placeholder="Minimal 6 karakter" autocomplete="new-password">
+              <button class="btn btn-outline-secondary" type="button" onclick="generateMuPassword()">Generate</button>
+            </div>
+            <div class="form-text" id="mu-f-pass-hint" style="font-size:0.75rem;">Kosongkan jika tidak ingin mengubah password.</div>
+          </div>
+
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Role <span class="text-danger">*</span></label>
+              <select class="form-select form-select-sm" id="mu-f-role" required onchange="onMuRoleChange()">
+                <option value="QC">QC Office (Admin)</option>
+                <option value="QC Area">QC Area</option>
+                <option value="Specialist">Specialist (Kabag)</option>
+                <option value="AM">Area Manager (AM)</option>
+                <option value="RM">Regional Manager (RM)</option>
+                <option value="Outlet">Outlet</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Status Akun</label>
+              <select class="form-select form-select-sm" id="mu-f-status">
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="mb-3" id="mu-f-outlet-box" style="display:none;">
+            <label class="form-label small fw-semibold">Outlet <span class="text-danger">*</span></label>
+            <select class="form-select form-select-sm" id="mu-f-outlet" onchange="previewMuScope()">
+              <option value="">— Pilih Outlet —</option>
+            </select>
+          </div>
+
+          <div class="mb-1">
+            <label class="form-label small fw-semibold">Akses Data Tambahan (opsional)</label>
+            <input type="text" class="form-control form-control-sm" id="mu-f-akses" placeholder="Kosongkan = default role" oninput="previewMuScope()">
+            <div class="form-text" style="font-size:0.75rem;">Opsional &amp; <b>menggantikan</b> scope default role. Format: <code>ALL</code> • <code>AREA:BEKASI 1, AREA:BEKASI 2</code> • <code>RM:nama</code> • <code>AM:nama</code> • <code>KABAG:nama</code> • <code>OUTLET:kode</code>.
+              Kosong → RM=kolom RM, AM=kolom AM, QC Area/Specialist=kolom KabagQCArea, Outlet=Kode Outlet.</div>
+            <div class="small mt-1" id="mu-f-scope-preview"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Batal</button>
+          <button type="submit" class="btn btn-sm btn-primary px-3" id="mu-f-btn">Simpan User</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+/**
+ * Master User Controller — hanya Admin / QC Office
+ */
+let MU_USERS = [];
+let MU_VIEW  = [];
+
+async function loadMasterUser() {
+  if (!isAdminUI()) {
+    $('mu-table-box').innerHTML = '<div class="p-4 text-center text-muted">Halaman ini hanya untuk Admin / QC Office.</div>';
+    return;
+  }
+  showSkeleton('mu-table-box', 4);
+  try {
+    const res = await call('apiGetUsers', APP_STATE.token);
+    MU_USERS = (res && res.users) || [];
+    buildMuRoleFilter();
+    renderMuSummary();
+    renderMuTable();
+  } catch (err) {
+    $('mu-table-box').innerHTML = '<div class="p-4 text-center text-danger">Gagal memuat data user.</div>';
+    toast('Gagal memuat daftar user: ' + err.message, 'error');
+  }
+}
+
+function buildMuRoleFilter() {
+  const sel = $('mu-filter-role');
+  const cur = sel.value;
+  const roles = [...new Set(MU_USERS.map(u => u.role).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">Semua Role</option>' + roles.map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join('');
+  sel.value = roles.includes(cur) ? cur : '';
+}
+
+function renderMuSummary() {
+  const total    = MU_USERS.length;
+  const active   = MU_USERS.filter(u => norm_(u.status || 'active') !== 'inactive').length;
+  const admins   = MU_USERS.filter(u => ['qc', 'admin', 'qc office', 'admin qc office'].includes(norm_(u.role))).length;
+  const cards = [
+    { label: 'Total User',      val: total,            bg: '#F8FAFC', fg: '#1E293B' },
+    { label: 'User Aktif',      val: active,           bg: '#DCFCE7', fg: '#166534' },
+    { label: 'Nonaktif',        val: total - active,   bg: '#FEE2E2', fg: '#991B1B' },
+    { label: 'Admin / QC Office', val: admins,         bg: '#DBEAFE', fg: '#1E40AF' }
+  ];
+  $('mu-summary').innerHTML = cards.map(c => `
+    <div class="col-6 col-md-3">
+      <div class="card p-3 border-0 shadow-xs" style="background:${c.bg}; border-radius:10px;">
+        <div class="small fw-semibold text-secondary" style="font-size:0.75rem;">${esc(c.label)}</div>
+        <div class="fw-bold" style="font-size:1.5rem; color:${c.fg};">${esc(c.val)}</div>
+      </div>
+    </div>`).join('');
+}
+
+function renderMuTable() {
+  const q  = norm_($('mu-search').value);
+  const rf = norm_($('mu-filter-role').value);
+  const sf = norm_($('mu-filter-status').value);
+
+  MU_VIEW = MU_USERS.filter(u => {
+    if (q && !(norm_(u.nama).includes(q) || norm_(u.username).includes(q) || norm_(u.kodeOutlet).includes(q))) return false;
+    if (rf && norm_(u.role) !== rf && norm_(u.roleCanon) !== rf) return false;
+    const act = norm_(u.status || 'active') !== 'inactive';
+    if (sf === 'active' && !act) return false;
+    if (sf === 'inactive' && act) return false;
+    return true;
+  });
+
+  const me = norm_(APP_STATE.user && APP_STATE.user.username);
+
+  const cols = [
+    { key: 'nama', label: 'Pengguna', render: r => `<div class="d-flex align-items-center gap-2">${avatarHtml(r.nama, 'sm')}<div><div class="fw-bold">${esc(r.nama)}</div><div class="small text-muted">@${esc(r.username)}</div></div></div>` },
+    { key: 'role', label: 'Role', render: r => `<span class="badge bg-primary-subtle text-primary border">${esc(r.role)}</span>` },
+    { key: 'kodeOutlet', label: 'Outlet Khusus', render: r => esc(r.kodeOutlet || '-') },
+    { key: 'aksesData', label: 'Akses Data', render: r => `<span class="small text-secondary">${esc(r.aksesData || 'default role')}</span>
+        <div class="small ${r.roleCanon === 'QC' || r.scopeCount ? 'text-success' : 'text-danger fw-semibold'}">${r.roleCanon === 'QC' ? 'Seluruh outlet' : (r.scopeCount + ' outlet')}</div>` },
+    { key: 'pwd', label: 'Keamanan', render: r => r.passwordHashed ? '<span class="badge bg-success-subtle text-success">Hash</span>' : '<span class="badge bg-danger-subtle text-danger" title="Password masih plaintext — akan di-hash saat user login atau via menu QC Admin">Plaintext</span>' },
+    { key: 'status', label: 'Status', render: r => statusBadgeHtml(r.status || 'Active') },
+    { key: 'updatedAt', label: 'Diperbarui', render: r => `<span class="small text-muted">${formatDate(r.updatedAt)}</span>` },
+    {
+      key: 'aksi', label: 'Aksi',
+      render: (r, idx) => {
+        const isMe = norm_(r.username) === me;
+        const act  = norm_(r.status || 'active') !== 'inactive';
+        let h = `<button class="btn btn-sm btn-light border py-1 px-2" style="font-size:0.75rem;" onclick="openMuForm(${idx}, true)">Edit</button> `;
+        if (!isMe) {
+          h += `<button class="btn btn-sm ${act ? 'btn-outline-warning' : 'btn-outline-success'} py-1 px-2" style="font-size:0.75rem;" onclick="toggleMuStatus(${idx})">${act ? 'Nonaktifkan' : 'Aktifkan'}</button> `;
+          h += `<button class="btn btn-sm btn-outline-danger py-1 px-2" style="font-size:0.75rem;" onclick="deleteMuUser(${idx})">Hapus</button>`;
+        } else {
+          h += '<span class="badge bg-light text-secondary border">Akun Anda</span>';
+        }
+        return h;
+      }
+    }
+  ];
+
+  buildTable('mu-table-box', cols, MU_VIEW, { emptyText: 'Tidak ada user yang sesuai kriteria.' });
+}
+
+function resetMuFilters() {
+  $('mu-search').value = '';
+  $('mu-filter-role').value = '';
+  $('mu-filter-status').value = '';
+  renderMuTable();
+}
+
+function onMuRoleChange() {
+  $('mu-f-outlet-box').style.display = $('mu-f-role').value === 'Outlet' ? 'block' : 'none';
+  previewMuScope();
+}
+
+let _muPrevTimer = null;
+function previewMuScope() {
+  clearTimeout(_muPrevTimer);
+  const box = $('mu-f-scope-preview');
+  if (!box) return;
+  _muPrevTimer = setTimeout(async () => {
+    if ($('mu-f-role').value === 'QC') { box.innerHTML = '<span class="text-success">Admin: seluruh outlet.</span>'; return; }
+    try {
+      const r = await callQuiet('apiPreviewScope', APP_STATE.token, {
+        username: $('mu-f-username').value, nama: $('mu-f-nama').value, role: $('mu-f-role').value,
+        aksesData: $('mu-f-akses').value, kodeOutlet: $('mu-f-role').value === 'Outlet' ? $('mu-f-outlet').value : ''
+      });
+      box.innerHTML = r.count
+        ? `<span class="text-success fw-semibold">${r.count} outlet dalam scope</span> <span class="text-muted">(${esc(r.sample.join(', '))}${r.count > r.sample.length ? ', …' : ''})</span>`
+        : '<span class="text-danger fw-semibold">0 outlet — akses data akan ditolak. Periksa Nama / Kode Outlet / AksesData.</span>';
+    } catch (e) { box.textContent = ''; }
+  }, 400);
+}
+
+function generateMuPassword() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+  let out = '';
+  for (let i = 0; i < 10; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  $('mu-f-pass').value = out;
+}
+
+function openMuForm(idx) {
+  const u = (idx === '' || idx === undefined || idx < 0) ? null : MU_VIEW[idx];
+
+  // Dropdown outlet dari scope user (admin = seluruh outlet)
+  const outlets = (APP_STATE.outlets || []).map(o => ({ v: o.kode || o.nama, l: `${o.nama}${o.kode ? ' (' + o.kode + ')' : ''}` }));
+  $('mu-f-outlet').innerHTML = '<option value="">— Pilih Outlet —</option>' +
+    outlets.map(o => `<option value="${esc(o.v)}">${esc(o.l)}</option>`).join('');
+
+  // Role di luar daftar standar tetap bisa ditampilkan saat edit
+  const roleSel = $('mu-f-role');
+  [...roleSel.querySelectorAll('option[data-extra]')].forEach(o => o.remove());
+  if (u && ![...roleSel.options].some(o => norm_(o.value) === norm_(u.role))) {
+    roleSel.insertAdjacentHTML('beforeend', `<option value="${esc(u.role)}" data-extra="1">${esc(u.role)}</option>`);
+  }
+
+  $('mu-form-title').textContent = u ? `Edit User: @${u.username}` : 'Tambah User';
+  $('mu-f-orig').value     = u ? u.username : '';
+  $('mu-f-username').value = u ? u.username : '';
+  $('mu-f-username').readOnly = !!u;
+  $('mu-f-nama').value     = u ? u.nama : '';
+  $('mu-f-pass').value     = '';
+  $('mu-f-pass').required  = !u;
+  $('mu-f-pass-label').innerHTML = u ? 'Password Baru' : 'Password <span class="text-danger">*</span>';
+  $('mu-f-pass-hint').style.display = u ? 'block' : 'none';
+
+  if (u) {
+    const match = [...roleSel.options].find(o => norm_(o.value) === norm_(u.role));
+    roleSel.value = match ? match.value : u.role;
+  } else {
+    roleSel.value = 'QC Area';
+  }
+  $('mu-f-status').value = u && norm_(u.status) === 'inactive' ? 'Inactive' : 'Active';
+
+  // Outlet khusus: cocokkan dengan kode atau nama
+  const ko = u ? (u.kodeOutlet || '') : '';
+  const opt = [...$('mu-f-outlet').options].find(o => norm_(o.value) === norm_(ko));
+  if (ko && !opt) {
+    $('mu-f-outlet').insertAdjacentHTML('beforeend', `<option value="${esc(ko)}">${esc(ko)}</option>`);
+  }
+  $('mu-f-outlet').value = ko;
+  $('mu-f-akses').value  = u ? (u.aksesData || '') : '';
+  onMuRoleChange();
+  openModal('modal-mu-form');
+}
+
+async function saveMuForm(event) {
+  event.preventDefault();
+  const btn = $('mu-f-btn');
+  const role = $('mu-f-role').value;
+  const isEdit = !!$('mu-f-orig').value;
+
+  if (role === 'Outlet' && !$('mu-f-outlet').value) {
+    toast('Outlet wajib dipilih untuk role Outlet.', 'warning');
+    return;
+  }
+  const pass = $('mu-f-pass').value.trim();
+  if ((!isEdit || pass) && pass.length < 6) {
+    toast('Password minimal 6 karakter.', 'warning');
+    return;
+  }
+
+  const payload = {
+    username:   $('mu-f-username').value.trim(),
+    nama:       $('mu-f-nama').value.trim(),
+    password:   pass,
+    role:       role,
+    status:     $('mu-f-status').value,
+    kodeOutlet: role === 'Outlet' ? $('mu-f-outlet').value : '',
+    aksesData:  $('mu-f-akses').value.trim()
+  };
+
+  btn.disabled = true;
+  try {
+    const res = await call('apiSaveUser', APP_STATE.token, payload);
+    closeModal('modal-mu-form');
+    toast(`User @${payload.username} berhasil ${res && res.created ? 'ditambahkan' : 'diperbarui'}.`, 'success');
+    await loadMasterUser();
+  } catch (err) {
+    toast('Gagal menyimpan user: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function toggleMuStatus(idx) {
+  const u = MU_VIEW[idx];
+  if (!u) return;
+  const act = norm_(u.status || 'active') !== 'inactive';
+  confirmDialog(
+    act ? 'Nonaktifkan User' : 'Aktifkan User',
+    `${act ? 'Nonaktifkan' : 'Aktifkan'} akun <b>@${esc(u.username)}</b> (${esc(u.nama)})?`,
+    async () => {
+      try {
+        await call('apiToggleUserStatus', APP_STATE.token, u.username);
+        toast(`Status @${u.username} berhasil diubah.`, 'success');
+        await loadMasterUser();
+      } catch (err) {
+        toast('Gagal mengubah status: ' + err.message, 'error');
+      }
+    },
+    act
+  );
+}
+
+function deleteMuUser(idx) {
+  const u = MU_VIEW[idx];
+  if (!u) return;
+  confirmDialog(
+    'Hapus User',
+    `Hapus permanen akun <b>@${esc(u.username)}</b> (${esc(u.nama)})?<br><span class="text-muted">Tindakan ini tidak dapat dibatalkan. Gunakan "Nonaktifkan" bila hanya ingin menutup akses.</span>`,
+    async () => {
+      try {
+        await call('apiDeleteUser', APP_STATE.token, u.username);
+        toast(`User @${u.username} berhasil dihapus.`, 'success');
+        await loadMasterUser();
+      } catch (err) {
+        toast('Gagal menghapus user: ' + err.message, 'error');
+      }
+    },
+    true
+  );
+}
+</script>

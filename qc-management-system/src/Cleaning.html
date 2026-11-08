@@ -1,0 +1,620 @@
+<!-- Cleaning.html — QC Management System: Cleaning Monitoring -->
+<div id="view-cleaning" class="module-view" style="display:none;">
+
+  <!-- ── SUB-TABS NAVIGASI CLEANING ── -->
+  <div class="d-flex flex-wrap align-items-center justify-content-between mb-3 border-bottom pb-2 gap-2">
+    <ul class="nav nav-pills gap-2" id="cleaning-subtabs">
+      <li class="nav-item">
+        <button class="nav-link active px-3 py-2 fw-semibold" id="btn-cl-table" onclick="switchCleaningTab('table')">Tabel Interval</button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link px-3 py-2 fw-semibold" id="btn-cl-cal" onclick="switchCleaningTab('calendar')">Kalender</button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link px-3 py-2 fw-semibold" id="btn-cl-month" onclick="switchCleaningTab('monthly')">Grouping Bulan</button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link px-3 py-2 fw-semibold" id="btn-cl-outlet" onclick="switchCleaningTab('outlet-group')">Grouping Outlet</button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link px-3 py-2 fw-semibold" id="btn-cl-or" onclick="switchCleaningTab('comparison-or')">Comparison OR</button>
+      </li>
+    </ul>
+
+    <button class="btn btn-sm btn-primary px-3 py-2" id="btn-add-cleaning" onclick="openAddCleaningModal()">
+      + Input Transaksi Cuci
+    </button>
+  </div>
+
+  <!-- ── FILTER BAR CLEANING ── -->
+  <div class="card p-3 border-0 shadow-xs mb-3 bg-white">
+    <div class="row g-2 align-items-end">
+      <div class="col-md-3">
+        <label class="form-label small fw-semibold text-secondary mb-1">Tanggal OR / Acuan</label>
+        <input type="date" class="form-control form-control-sm" id="cl-filter-or-date" onchange="loadCleaning()">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small fw-semibold text-secondary mb-1">Filter Outlet</label>
+        <select class="form-select form-select-sm" id="cl-filter-outlet" onchange="renderActiveCleaningView()">
+          <option value="">Semua Outlet</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small fw-semibold text-secondary mb-1">Status Interval</label>
+        <select class="form-select form-select-sm" id="cl-filter-status" onchange="renderActiveCleaningView()">
+          <option value="">Semua Status</option>
+          <option value="OVERDUE">OVERDUE (Terlambat)</option>
+          <option value="WARNING">WARNING (Mendekati)</option>
+          <option value="OK">OK (Aman)</option>
+          <option value="NO HISTORY">NO HISTORY (Belum ada data)</option>
+          <option value="NO INTERVAL">NO INTERVAL (Class belum ada standar)</option>
+        </select>
+      </div>
+      <div class="col-md-3 d-flex gap-2">
+        <button class="btn btn-sm btn-dark w-100" onclick="loadCleaning()">Refresh Data</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 4 KARTU SUMMARY CLEANING ── -->
+  <div class="row g-2 mb-3" id="cl-summary-cards">
+    <!-- Populated by renderCleaningSummary -->
+  </div>
+
+  <!-- ── KONTEN VIEW TAB 1: TABEL INTERVAL (DEFAULT) ── -->
+  <div id="cl-view-table" class="cl-subview">
+    <div class="card border-0 shadow-xs bg-white">
+      <div id="cl-table-container"></div>
+    </div>
+  </div>
+
+  <!-- ── KONTEN VIEW TAB 2: KALENDER ── -->
+  <div id="cl-view-calendar" class="cl-subview" style="display:none;">
+    <div class="card p-3 border-0 shadow-xs bg-white">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <div class="fw-bold" style="color:#172554;" id="cl-cal-month-title">Kalender Pencucian</div>
+        <div class="d-flex gap-2">
+          <input type="month" class="form-control form-control-sm" id="cl-cal-picker" onchange="loadCleaningCalendar()">
+        </div>
+      </div>
+      <div id="cl-calendar-grid" class="table-responsive"></div>
+    </div>
+  </div>
+
+  <!-- ── KONTEN VIEW TAB 3: GROUPING BULAN ── -->
+  <div id="cl-view-monthly" class="cl-subview" style="display:none;">
+    <div id="cl-monthly-accordion" class="accordion d-flex flex-column gap-3"></div>
+  </div>
+
+  <!-- ── KONTEN VIEW TAB 4: GROUPING OUTLET ── -->
+  <div id="cl-view-outlet-group" class="cl-subview" style="display:none;">
+    <div class="card border-0 shadow-xs bg-white">
+      <div id="cl-outlet-group-table-box"></div>
+    </div>
+  </div>
+
+  <!-- ── KONTEN VIEW TAB 5: COMPARISON OR ── -->
+  <div id="cl-view-comparison-or" class="cl-subview" style="display:none;">
+    <div class="card p-3 border-0 shadow-xs mb-3 bg-white">
+      <div class="d-flex align-items-center justify-content-between">
+        <div class="fw-bold" style="color:#172554;">Evaluasi Pencapaian Terhadap Target OR</div>
+        <div class="small text-muted">Perbandingan Realisasi Pencucian vs Target/OR per Outlet</div>
+      </div>
+    </div>
+    <div class="card border-0 shadow-xs bg-white">
+      <div id="cl-comparison-or-table-box"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── MODAL INPUT TRANSAKSI CUCI ── -->
+<div class="modal fade" id="modal-add-cleaning" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-md">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header" style="background:#172554; color:#fff;">
+        <h5 class="modal-title mb-0" id="cl-modal-title">Input Transaksi Cleaning</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form onsubmit="saveCleaningTransaction(event)">
+        <div class="modal-body p-4">
+          <input type="hidden" id="inp-cl-id">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Pilih Outlet <span class="text-danger">*</span></label>
+            <select class="form-select form-select-sm" id="inp-cl-outlet" required onchange="onCleaningOutletSelect()">
+              <option value="">— Pilih Outlet —</option>
+            </select>
+          </div>
+
+          <div class="row g-2 mb-3">
+            <div class="col-4">
+              <label class="form-label small text-muted">Class</label>
+              <input type="text" class="form-control form-control-sm bg-light" id="inp-cl-class" readonly>
+            </div>
+            <div class="col-4">
+              <label class="form-label small text-muted">Area</label>
+              <input type="text" class="form-control form-control-sm bg-light" id="inp-cl-area" readonly>
+            </div>
+            <div class="col-4">
+              <label class="form-label small text-muted">Region</label>
+              <input type="text" class="form-control form-control-sm bg-light" id="inp-cl-region" readonly>
+            </div>
+          </div>
+
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Tanggal Cuci <span class="text-danger">*</span></label>
+              <input type="date" class="form-control form-control-sm" id="inp-cl-date" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Studio <span class="text-danger">*</span></label>
+              <input type="text" class="form-control form-control-sm" id="inp-cl-studio" placeholder="Studio 1" list="dl-cl-studio" maxlength="60" required>
+              <datalist id="dl-cl-studio"></datalist>
+            </div>
+          </div>
+
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Jenis Cleaning <span class="text-danger">*</span></label>
+              <select class="form-select form-select-sm" id="inp-cl-jenis" required>
+                <option value="Cuci Karpet">Cuci Karpet</option>
+                <option value="Cuci Kursi">Cuci Kursi</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Target / OR</label>
+              <input type="number" class="form-control form-control-sm" id="inp-cl-target" placeholder="1" min="1" max="31" value="1">
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Vendor Pelaksana</label>
+            <input type="text" class="form-control form-control-sm" id="inp-cl-vendor" placeholder="Nama vendor / internal">
+          </div>
+
+          <div class="mb-2">
+            <label class="form-label small fw-semibold">Keterangan Tambahan</label>
+            <textarea class="form-control form-control-sm" id="inp-cl-ket" rows="2" placeholder="Catatan pekerjaan…"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Batal</button>
+          <button type="submit" class="btn btn-sm btn-primary px-3" id="inp-cl-submit-btn">Simpan Transaksi</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+/**
+ * Cleaning Controller Logic
+ * Sumber data: sheet TRANSAKSI_CLEANING (+ INTERVAL per Class, KODE per outlet)
+ *  - table / outlet-group : apiCleaning(view=table | outlet-group)
+ *  - calendar / monthly   : apiCleaning(view=calendar)  → daftar transaksi asli
+ *  - comparison-or        : apiComparisonOR(bulan, tahun)
+ */
+let CLEANING_CACHE  = null;   // {rows, summary}      ← view table
+let CLEANING_EVENTS = [];     // transaksi            ← view calendar
+let CLEANING_GROUP  = [];     // outlets              ← view outlet-group
+let CLEANING_OR     = null;   // {rows, summary}      ← apiComparisonOR
+let CURRENT_CLEANING_TAB = 'table';
+
+async function loadCleaning() {
+  const orDateInput = $('cl-filter-or-date');
+  if (orDateInput && !orDateInput.value) {
+    orDateInput.value = today();
+  }
+  const calPicker = $('cl-cal-picker');
+  if (calPicker && !calPicker.value) {
+    calPicker.value = today().slice(0, 7);
+  }
+
+  // Populate outlet options
+  const oNames = (APP_STATE.outlets || []).map(o => o.nama);
+  const curFilter = $('cl-filter-outlet').value;
+  populateSelect('cl-filter-outlet', oNames, null, null, true, 'Semua Outlet');
+  $('cl-filter-outlet').value = oNames.includes(curFilter) ? curFilter : '';
+  populateSelect('inp-cl-outlet', oNames, null, null, false);
+
+  const studios = APP_STATE.studios || [];
+  if ($('dl-cl-studio')) $('dl-cl-studio').innerHTML = studios.map(x => `<option value="${esc(x)}">`).join('');
+  if ($('inp-cl-date')) $('inp-cl-date').max = today();
+
+  showSkeleton('cl-table-container', 4);
+  try {
+    const orDate = orDateInput.value;
+    // Satu request untuk seluruh view (satu kali baca sheet di server)
+    const all = await call('apiCleaning', APP_STATE.token, { orDate: orDate, view: 'all' });
+    CLEANING_CACHE  = { rows: all.rows || [], summary: all.summary || {} };
+    CLEANING_EVENTS = all.events || [];
+    CLEANING_GROUP  = all.outlets || [];
+    CLEANING_OR     = all.comparison || { rows: [], summary: {} };
+    APP_STATE._clWarnDays = all.warningDays || 30;
+    renderActiveCleaningView();
+  } catch (err) {
+    toast('Gagal memuat data cleaning: ' + err.message, 'error');
+    if ($('cl-table-container')) {
+      $('cl-table-container').innerHTML = '<div class="p-4 text-center text-danger">Gagal memuat data. Periksa sheet TRANSAKSI_CLEANING, KODE, dan INTERVAL.</div>';
+    }
+  }
+}
+
+function switchCleaningTab(tab) {
+  CURRENT_CLEANING_TAB = tab;
+  const btnMap = {
+    'table': 'btn-cl-table',
+    'calendar': 'btn-cl-cal',
+    'monthly': 'btn-cl-month',
+    'outlet-group': 'btn-cl-outlet',
+    'comparison-or': 'btn-cl-or'
+  };
+
+  Object.keys(btnMap).forEach(k => {
+    const el = $(btnMap[k]);
+    if (el) el.classList.toggle('active', k === tab);
+  });
+
+  $$('.cl-subview').forEach(v => v.style.display = 'none');
+  const target = $(`cl-view-${tab}`);
+  if (target) target.style.display = 'block';
+
+  renderActiveCleaningView();
+}
+
+function renderActiveCleaningView() {
+  if (!CLEANING_CACHE) return;
+  renderCleaningSummary();
+
+  if (CURRENT_CLEANING_TAB === 'table') {
+    renderCuciTable();
+  } else if (CURRENT_CLEANING_TAB === 'calendar') {
+    renderCleaningCalendar();
+  } else if (CURRENT_CLEANING_TAB === 'monthly') {
+    renderCleaningMonthly();
+  } else if (CURRENT_CLEANING_TAB === 'outlet-group') {
+    renderCleaningOutletGroup();
+  } else if (CURRENT_CLEANING_TAB === 'comparison-or') {
+    renderCleaningComparisonOR();
+  }
+}
+
+function _cleaningFilteredRows() {
+  const oFilter = ($('cl-filter-outlet').value || '').toLowerCase();
+  const sFilter = ($('cl-filter-status').value || '').toUpperCase();
+  return (CLEANING_CACHE.rows || []).filter(r => {
+    if (oFilter && String(r.outlet || '').toLowerCase() !== oFilter) return false;
+    if (sFilter && String(r.status || '').toUpperCase() !== sFilter) return false;
+    return true;
+  });
+}
+
+function renderCleaningSummary() {
+  const rows = _cleaningFilteredRows();
+  let ok = 0, warn = 0, overdue = 0, noIv = 0;
+
+  rows.forEach(r => {
+    const st = String(r.status || '').toUpperCase();
+    if (st === 'OK') ok++;
+    else if (st === 'WARNING') warn++;
+    else if (st === 'OVERDUE') overdue++;
+    else if (st === 'NO INTERVAL') noIv++;
+  });
+  const sm = (CLEANING_CACHE && CLEANING_CACHE.summary) || {};
+
+  const cards = [
+    { label: `Studio-Jenis (${sm.totalOutlet || 0} outlet)`, count: rows.length, bg: '#F8FAFC', fg: '#1E293B', border: '#E2E8F0',
+      sub: `Compliance kursi ${sm.complianceKursi || 0}% • karpet ${sm.complianceKarpet || 0}%` },
+    { label: 'Status OK (Aman)', count: ok, bg: '#DCFCE7', fg: '#166534', border: '#BBF7D0' },
+    { label: 'Warning (Mendekati)', count: warn, bg: '#FEF3C7', fg: '#92400E', border: '#FDE68A' },
+    { label: 'Overdue (Terlambat)', count: overdue, bg: '#FEE2E2', fg: '#991B1B', border: '#FECACA',
+      sub: noIv ? `${noIv} baris tanpa standar interval` : '' }
+  ];
+
+  let html = '';
+  cards.forEach(c => {
+    html += `
+      <div class="col-6 col-md-3">
+        <div class="card p-3 border-0 shadow-xs" style="background:${c.bg}; border:1px solid ${c.border}; border-radius:10px;">
+          <div class="small fw-semibold text-secondary" style="font-size:0.75rem;">${esc(c.label)}</div>
+          <div class="fw-bold" style="font-size:1.5rem; color:${c.fg};">${esc(c.count)}</div>
+          ${c.sub ? `<div class="kpi-sub">${esc(c.sub)}</div>` : ''}
+        </div>
+      </div>`;
+  });
+  if ($('cl-summary-cards')) $('cl-summary-cards').innerHTML = html;
+}
+
+function renderCuciTable() {
+  const rows = _cleaningFilteredRows();
+
+  const cols = [
+    { key: 'outlet', label: 'Outlet', render: r => `<span class="fw-bold text-dark">${esc(r.outlet)}</span>` },
+    { key: 'kelas', label: 'Class', render: r => `<span class="badge bg-light text-dark border">${esc(r.kelas || '-')}</span>` },
+    { key: 'studio', label: 'Studio', render: r => esc(r.studio || '-') },
+    { key: 'jenis', label: 'Jenis', render: r => `<span class="badge ${r.jenis === 'Cuci Karpet' ? 'bg-primary-subtle text-primary' : 'bg-info-subtle text-info'}">${esc(r.jenis)}</span>` },
+    { key: 'terakhir', label: 'Cuci Terakhir', render: r => formatDate(r.terakhir) },
+    { key: 'interval', label: 'Interval', render: r => r.intervalValid === false ? '<span class="text-warning-emphasis small">belum diatur</span>' : `${esc(r.interval)} bln` },
+    { key: 'jatuhTempo', label: 'Jatuh Tempo', render: r => formatDate(r.jatuhTempo) },
+    {
+      key: 'sisa',
+      label: 'Sisa Hari',
+      render: r => {
+        if (r.sisa == null) return '-';
+        const color = r.sisa < 0 ? '#DC2626' : (r.sisa <= (APP_STATE._clWarnDays || 30) ? '#F59E0B' : '#16A34A');
+        return `<span class="fw-bold" style="color:${color};">${r.sisa} hari</span>`;
+      }
+    },
+    { key: 'status', label: 'Status', render: r => statusBadgeHtml(r.status) },
+    { key: 'vendor', label: 'Vendor', render: r => esc(r.vendor || '-') }
+  ];
+
+  buildTable('cl-table-container', cols, rows, { emptyText: 'Tidak ada data pencucian sesuai kriteria.' });
+}
+
+function _cleaningFilteredEvents() {
+  const oFilter = ($('cl-filter-outlet').value || '').toLowerCase();
+  return (CLEANING_EVENTS || []).filter(e => !oFilter || String(e.outlet || '').toLowerCase() === oFilter);
+}
+
+function renderCleaningCalendar() {
+  const ym = $('cl-cal-picker').value || today().slice(0, 7);
+  $('cl-cal-month-title').textContent = `Kalender Pencucian — ${formatMonth(ym)}`;
+
+  const events = _cleaningFilteredEvents().filter(e => String(e.tanggal || '').startsWith(ym));
+  const daysInMonth = new Date(parseInt(ym.slice(0,4)), parseInt(ym.slice(5,7)), 0).getDate();
+
+  let html = '<div class="row g-2">';
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dStr = `${ym}-${pad(d)}`;
+    const dayEvents = events.filter(e => String(e.tanggal).slice(0, 10) === dStr);
+
+    html += `
+      <div class="col" style="min-width: 130px; min-height: 100px;">
+        <div class="card p-2 h-100 border ${dayEvents.length > 0 ? 'bg-white shadow-xs' : 'bg-light'}">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="small fw-bold text-secondary">${d}</span>
+            ${dayEvents.length > 0 ? `<span class="badge bg-primary rounded-pill" style="font-size:0.65rem;">${dayEvents.length}</span>` : ''}
+          </div>
+          <div class="d-flex flex-column gap-1" style="max-height:80px; overflow-y:auto;">
+            ${dayEvents.map(e => `
+              <div class="small p-1 rounded ${e.jenis === 'Cuci Karpet' ? 'bg-primary-subtle text-primary' : 'bg-info-subtle text-info'}" style="font-size:0.7rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${esc(e.outlet)} - ${esc(e.studio)} (${esc(e.jenis)})">
+                ${esc(e.outlet)} (${esc(e.studio)})
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>`;
+  }
+  html += '</div>';
+
+  $('cl-calendar-grid').innerHTML = html;
+}
+
+function loadCleaningCalendar() {
+  renderCleaningCalendar();
+}
+
+function renderCleaningMonthly() {
+  const events = _cleaningFilteredEvents();
+  const mGroups = {};
+
+  events.forEach(e => {
+    const ym = String(e.tanggal || '').substring(0, 7);
+    if (!ym) return;
+    if (!mGroups[ym]) mGroups[ym] = { kursi: 0, karpet: 0, items: [] };
+    if (e.jenis === 'Cuci Kursi') mGroups[ym].kursi++;
+    else mGroups[ym].karpet++;
+    mGroups[ym].items.push(e);
+  });
+
+  const sortedMonths = Object.keys(mGroups).sort().reverse();
+  if (sortedMonths.length === 0) {
+    $('cl-monthly-accordion').innerHTML = '<div class="text-center text-muted p-4">Tidak ada rekaman pencucian bulanan.</div>';
+    return;
+  }
+
+  const admin = can('canEditCleaning');
+  let html = '';
+  sortedMonths.forEach((ym, idx) => {
+    const grp = mGroups[ym];
+    grp.items.sort((a, b) => String(b.tanggal).localeCompare(String(a.tanggal)));
+    html += `
+      <div class="accordion-item border rounded-3 overflow-hidden shadow-xs">
+        <h2 class="accordion-header">
+          <button class="accordion-button ${idx > 0 ? 'collapsed' : ''} bg-white py-3 px-4" type="button" data-bs-toggle="collapse" data-bs-target="#acc-cl-${idx}">
+            <div class="d-flex flex-wrap align-items-center justify-content-between w-100 me-3">
+              <span class="fw-bold text-dark">${formatMonth(ym)}</span>
+              <div class="d-flex gap-2">
+                <span class="badge bg-info-subtle text-info">Cuci Kursi: ${grp.kursi}</span>
+                <span class="badge bg-primary-subtle text-primary">Cuci Karpet: ${grp.karpet}</span>
+                <span class="badge bg-secondary-subtle text-secondary">Total: ${grp.items.length}</span>
+              </div>
+            </div>
+          </button>
+        </h2>
+        <div id="acc-cl-${idx}" class="accordion-collapse collapse ${idx === 0 ? 'show' : ''}">
+          <div class="accordion-body p-0">
+            <div class="table-responsive">
+              <table class="table table-sm table-hover mb-0">
+                <thead class="bg-light">
+                  <tr><th>Outlet</th><th>Studio</th><th>Jenis</th><th>Tanggal</th><th>Vendor</th>${admin ? '<th>Aksi</th>' : ''}</tr>
+                </thead>
+                <tbody>
+                  ${grp.items.map(it => `
+                    <tr>
+                      <td class="fw-semibold">${esc(it.outlet)}</td>
+                      <td>${esc(it.studio)}</td>
+                      <td><span class="badge ${it.jenis === 'Cuci Karpet' ? 'bg-primary-subtle text-primary' : 'bg-info-subtle text-info'}">${esc(it.jenis)}</span></td>
+                      <td>${formatDate(it.tanggal)}</td>
+                      <td>${esc(it.vendor || '-')}</td>
+                      ${admin ? `<td>
+                        <button class="btn btn-sm btn-light border py-0 px-2" style="font-size:0.75rem;" onclick="openEditCleaningModal('${esc(it.idCleaning)}')">Edit</button>
+                        <button class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size:0.75rem;" onclick="deleteCleaningAction('${esc(it.idCleaning)}')">Hapus</button>
+                      </td>` : ''}
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>`;
+  });
+
+  $('cl-monthly-accordion').innerHTML = html;
+}
+
+function renderCleaningOutletGroup() {
+  const oFilter = ($('cl-filter-outlet').value || '').toLowerCase();
+  const list = (CLEANING_GROUP || []).filter(r => !oFilter || String(r.outlet || '').toLowerCase() === oFilter);
+
+  const cols = [
+    { key: 'outlet', label: 'Outlet', render: r => `<span class="fw-bold">${esc(r.outlet)}</span>` },
+    { key: 'kelas', label: 'Class', render: r => `<span class="badge bg-light text-dark border">${esc(r.kelas || '-')}</span>` },
+    { key: 'lastKursi', label: 'Cuci Kursi Terakhir', render: r => formatDate(r.lastKursi) },
+    { key: 'nextDueKursi', label: 'Jatuh Tempo Kursi', render: r => r.intervalKursi ? formatDate(r.nextDueKursi) : '<span class="small text-muted">interval -</span>' },
+    { key: 'statusKursi', label: 'Status Kursi', render: r => statusBadgeHtml(r.statusKursi) },
+    { key: 'lastKarpet', label: 'Cuci Karpet Terakhir', render: r => formatDate(r.lastKarpet) },
+    { key: 'nextDueKarpet', label: 'Jatuh Tempo Karpet', render: r => r.intervalKarpet ? formatDate(r.nextDueKarpet) : '<span class="small text-muted">interval -</span>' },
+    { key: 'statusKarpet', label: 'Status Karpet', render: r => statusBadgeHtml(r.statusKarpet) }
+  ];
+
+  buildTable('cl-outlet-group-table-box', cols, list, { emptyText: 'Tidak ada histori per outlet.' });
+}
+
+function renderCleaningComparisonOR() {
+  const oFilter = ($('cl-filter-outlet').value || '').toLowerCase();
+  const data = CLEANING_OR || { rows: [], summary: {} };
+  const rows = (data.rows || []).filter(r => !oFilter || String(r.outlet || '').toLowerCase() === oFilter);
+
+  const cols = [
+    { key: 'outlet', label: 'Outlet', render: r => `<span class="fw-bold">${esc(r.outlet)}</span>` },
+    { key: 'kelas', label: 'Class', render: r => `<span class="badge bg-light text-dark border">${esc(r.kelas || '-')}</span>` },
+    { key: 'jenis', label: 'Jenis', render: r => `<span class="badge ${r.jenis === 'Cuci Karpet' ? 'bg-primary-subtle text-primary' : 'bg-info-subtle text-info'}">${esc(r.jenis)}</span>` },
+    { key: 'actual', label: 'Realisasi', render: r => `<span class="fw-bold">${r.actual}</span>` },
+    { key: 'target', label: 'Target OR', render: r => `<span class="text-secondary">${r.target}</span>` },
+    {
+      key: 'selisih',
+      label: 'Selisih',
+      render: r => `<span class="fw-bold ${r.selisih >= 0 ? 'text-success' : 'text-danger'}">${r.selisih >= 0 ? '+' : ''}${r.selisih}</span>`
+    },
+    {
+      key: 'persentase',
+      label: 'Pencapaian %',
+      render: r => `
+        <div class="d-flex align-items-center gap-2" style="min-width:120px;">
+          <div class="progress flex-grow-1" style="height:6px;">
+            <div class="progress-bar ${r.persentase >= 100 ? 'bg-success' : 'bg-warning'}" style="width:${Math.min(r.persentase, 100)}%;"></div>
+          </div>
+          <span class="small fw-bold">${r.persentase}%</span>
+        </div>`
+    },
+    { key: 'keterangan', label: 'Keterangan', render: r => `<span class="badge ${r.selisih >= 0 ? 'bg-success' : 'bg-warning text-dark'}">${esc(r.keterangan)}</span>` }
+  ];
+
+  buildTable('cl-comparison-or-table-box', cols, rows, { emptyText: 'Tidak ada data comparison OR untuk bulan ini.' });
+}
+
+// ─── Input / Edit / Hapus ────────────────────────────────────────────────────
+function openAddCleaningModal() {
+  $('cl-modal-title').textContent = 'Input Transaksi Cleaning';
+  $('inp-cl-id').value = '';
+  $('inp-cl-outlet').disabled = false;
+  $('inp-cl-date').value = today();
+  $('inp-cl-date').max = today();
+  $('inp-cl-studio').value = 'Studio 1';
+  $('inp-cl-jenis').value = 'Cuci Karpet';
+  $('inp-cl-target').value = 1;
+  $('inp-cl-vendor').value = '';
+  $('inp-cl-ket').value = '';
+  $('inp-cl-submit-btn').textContent = 'Simpan Transaksi';
+  onCleaningOutletSelect();
+  openModal('modal-add-cleaning');
+}
+
+function openEditCleaningModal(id) {
+  const e = (CLEANING_EVENTS || []).find(x => x.idCleaning === id);
+  if (!e) return;
+  if (!(APP_STATE.outlets || []).some(o => o.nama === e.outlet)) {
+    $('inp-cl-outlet').insertAdjacentHTML('beforeend', `<option value="${esc(e.outlet)}">${esc(e.outlet)}</option>`);
+  }
+  $('cl-modal-title').textContent = 'Edit Transaksi Cleaning';
+  $('inp-cl-id').value = id;
+  $('inp-cl-outlet').value = e.outlet;
+  $('inp-cl-outlet').disabled = true;   // outlet tidak dapat diganti pada edit
+  onCleaningOutletSelect();
+  $('inp-cl-date').value = String(e.tanggal).slice(0, 10);
+  $('inp-cl-studio').value = e.studio || '';
+  $('inp-cl-jenis').value = ['Cuci Kursi', 'Cuci Karpet'].includes(e.jenis) ? e.jenis : 'Cuci Karpet';
+  $('inp-cl-target').value = Number(e.targetInterval) || 1;
+  $('inp-cl-vendor').value = e.vendor || '';
+  $('inp-cl-ket').value = e.keterangan || '';
+  $('inp-cl-submit-btn').textContent = 'Simpan Perubahan';
+  openModal('modal-add-cleaning');
+}
+
+function deleteCleaningAction(id) {
+  const e = (CLEANING_EVENTS || []).find(x => x.idCleaning === id);
+  if (!e) return;
+  confirmDialog(
+    'Hapus Transaksi Cleaning',
+    `Hapus transaksi <b>${esc(e.jenis)}</b> — ${esc(e.outlet)} (${esc(e.studio)}) tanggal ${formatDate(e.tanggal)}?`,
+    async () => {
+      try {
+        await call('apiDeleteCleaning', APP_STATE.token, id);
+        toast('Transaksi cleaning berhasil dihapus.', 'success');
+        await loadCleaning();
+      } catch (err) {
+        toast('Gagal menghapus transaksi: ' + err.message, 'error');
+      }
+    },
+    true
+  );
+}
+
+function onCleaningOutletSelect() {
+  const oName = $('inp-cl-outlet').value;
+  const oInfo = (APP_STATE.outlets || []).find(o => o.nama === oName);
+  $('inp-cl-class').value  = oInfo ? (oInfo.kelas || '-') : '-';
+  $('inp-cl-area').value   = oInfo ? (oInfo.area  || '-') : '-';
+  $('inp-cl-region').value = oInfo ? (oInfo.region || oInfo.kota || '-') : '-';
+}
+
+async function saveCleaningTransaction(event) {
+  event.preventDefault();
+  const btn = $('inp-cl-submit-btn');
+  const editId = $('inp-cl-id').value;
+  const label = editId ? 'Simpan Perubahan' : 'Simpan Transaksi';
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Menyimpan…';
+
+  const oSel = (APP_STATE.outlets || []).find(o => o.nama === $('inp-cl-outlet').value) || {};
+  const payload = {
+    outlet: $('inp-cl-outlet').value,
+    kodeOutlet: oSel.kode || '',
+    tanggal: $('inp-cl-date').value,
+    studio: $('inp-cl-studio').value.trim(),
+    jenis: $('inp-cl-jenis').value,
+    targetInterval: Number($('inp-cl-target').value) || 1,
+    vendor: $('inp-cl-vendor').value,
+    keterangan: $('inp-cl-ket').value
+  };
+
+  try {
+    if (editId) {
+      await call('apiUpdateCleaning', APP_STATE.token, editId, payload);
+    } else {
+      await call('apiSaveCleaning', APP_STATE.token, payload);
+    }
+    closeModal('modal-add-cleaning');
+    toast(editId ? 'Transaksi pencucian berhasil diperbarui.' : 'Transaksi pencucian berhasil disimpan.', 'success');
+    await loadCleaning();
+  } catch (err) {
+    toast('Gagal menyimpan transaksi: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = label;
+  }
+}
+</script>

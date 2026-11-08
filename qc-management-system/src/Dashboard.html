@@ -1,0 +1,235 @@
+<!-- Dashboard.html — QC Management System: Executive Dashboard -->
+<div id="view-dashboard" class="module-view" style="display:none;">
+
+  <!-- ── 1. KPI UTAMA (6 KARTU RINGKASAN) ── -->
+  <div class="row g-3 mb-4" id="dash-kpi-row">
+    <!-- Populated by renderDashboard -->
+  </div>
+
+  <!-- ── 2. MONITORING KEBERSIHAN & PROGRES VISIT ── -->
+  <div class="row g-3 mb-4">
+    <!-- Status Cleaning -->
+    <div class="col-lg-6">
+      <div class="card h-100 p-4 border-0 shadow-xs">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <div class="fw-bold" style="font-size:1.05rem; color:#172554;">Status Interval Cleaning</div>
+          <button class="btn btn-sm btn-outline-primary py-1 px-2" style="font-size:0.78rem;" onclick="navigateTo('cleaning')">Lihat Rincian →</button>
+        </div>
+        <div class="row g-2 mb-3" id="dash-cleaning-cards">
+          <!-- Populated -->
+        </div>
+        <div class="small text-muted">
+          *Status terburuk per outlet berdasarkan interval standar Class Outlet (Karpet &amp; Kursi) per studio.
+        </div>
+      </div>
+    </div>
+
+    <!-- Status & Progres Kunjungan QC Area -->
+    <div class="col-lg-6">
+      <div class="card h-100 p-4 border-0 shadow-xs">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <div class="fw-bold" style="font-size:1.05rem; color:#172554;">Realisasi Kunjungan QC Area</div>
+          <button class="btn btn-sm btn-outline-primary py-1 px-2" style="font-size:0.78rem;" onclick="navigateTo('visit')">Buka Timeline →</button>
+        </div>
+        <div class="mb-3">
+          <div class="d-flex justify-content-between small text-muted mb-1">
+            <span>Visit Achievement bulan ini (outlet unik)</span>
+            <span class="fw-bold" id="dash-visit-percent">0%</span>
+          </div>
+          <div class="progress" style="height: 10px; border-radius: 6px; background:#E2E8F0;">
+            <div id="dash-visit-bar" class="progress-bar bg-success" role="progressbar" style="width: 0%; border-radius: 6px;"></div>
+          </div>
+        </div>
+        <div class="row g-2 text-center" id="dash-visit-breakdown">
+          <!-- Populated -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 3. TOP QC AREA & RECENT ACTIVITIES ── -->
+  <div class="row g-3 mb-4">
+    <!-- Top QC Area Performers -->
+    <div class="col-lg-5">
+      <div class="card h-100 p-4 border-0 shadow-xs">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <div class="fw-bold" style="font-size:1.05rem; color:#172554;">Top Performa QC Area</div>
+          <button class="btn btn-sm btn-outline-primary py-1 px-2" style="font-size:0.78rem;" onclick="navigateTo('performance')">Semua Ranking →</button>
+        </div>
+        <div id="dash-top-qc-list" class="d-flex flex-column gap-2">
+          <!-- Populated -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Aktivitas Terkini (Audit Log) -->
+    <div class="col-lg-7">
+      <div class="card h-100 p-4 border-0 shadow-xs">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <div class="fw-bold" style="font-size:1.05rem; color:#172554;">Aktivitas &amp; Log Terkini</div>
+          <span class="badge bg-light text-secondary border">Audit Trail</span>
+        </div>
+        <div class="table-responsive" style="max-height: 260px; overflow-y: auto;">
+          <table class="table table-sm table-hover align-middle mb-0" id="dash-activity-table">
+            <tbody id="dash-activity-body">
+              <tr><td class="text-center text-muted py-3">Memuat riwayat aktivitas…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/**
+ * Dashboard Controller Logic
+ */
+async function loadDashboard() {
+  const container = $('dash-kpi-row');
+  if (container) showSkeleton('dash-kpi-row', 6);
+
+  try {
+    const data = await call('apiDashboard', APP_STATE.token);
+    renderDashboard(data);
+  } catch (err) {
+    toast('Gagal memuat ringkasan dashboard: ' + err.message, 'error');
+  }
+}
+
+function renderDashboard(data) {
+  // 1. KPI Cards
+  const kpis = [
+    { label: 'Total Outlet Scope', val: data.totalOutlet, icon: '🏢', color: '#172554', sub: `${esc(data.totalQCArea)} personel QC Area` },
+    { label: 'Visit Bulan Ini', val: `${data.realisasiVisit}/${data.totalVisitBulanIni}`, icon: '🗓️', color: '#3B82F6', sub: `${esc(data.outstandingVisit)} belum selesai` },
+    { label: `Visit Achievement (${data.periodeBulan || 3} bln)`, val: fmtPercent(data.visitAchievementPeriode, 1), icon: '🎯', color: '#16A34A',
+      sub: `${esc(data.outletBelumDikunjungi || 0)} outlet belum dikunjungi` },
+    { label: 'Compliance Kursi / Karpet', val: `${fmtPercent((data.cleaningStatus || {}).complianceKursi, 0)} / ${fmtPercent((data.cleaningStatus || {}).complianceKarpet, 0)}`,
+      icon: '🧼', color: '#0E7490', sub: 'outlet tidak overdue' },
+    { label: 'Checklist Selesai', val: data.checklistCompleted, icon: '📋', color: '#334155',
+      sub: `${esc(data.checklistBulanIni || 0)} bulan ini • ${esc(data.pendingEvidence || 0)} tanpa PDF` },
+    {
+      label: 'Skor QC (Σ aktual/Σ maks)',
+      val: data.checklistCompleted ? fmtScore(data.avgChecklistScore) + '%' : '-',
+      sub: gradeBadgeHtml(data.overallGrade),
+      icon: '⭐',
+      color: '#16A34A',
+      rawSub: true
+    }
+  ];
+
+  let kpiHtml = '';
+  kpis.forEach(k => {
+    kpiHtml += `
+      <div class="col-6 col-md-4 col-xl-2">
+        <div class="card p-3 border-0 shadow-xs h-100" style="background:#fff; border-radius:12px;">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <span class="small text-muted fw-semibold" style="font-size:0.75rem;">${esc(k.label)}</span>
+            <span style="font-size:1.1rem;">${k.icon}</span>
+          </div>
+          <div class="fw-bold" style="font-size:1.6rem; color:${k.color}; line-height:1.2;">${esc(k.val)}</div>
+          ${k.sub ? `<div class="mt-2 ${k.rawSub ? '' : 'kpi-sub'}">${k.sub}</div>` : ''}
+        </div>
+      </div>`;
+  });
+  if ($('dash-kpi-row')) $('dash-kpi-row').innerHTML = kpiHtml;
+
+  // 2. Cleaning Status Cards
+  const cl = data.cleaningStatus || { ok: 0, warning: 0, overdue: 0, noHistory: 0, noInterval: 0 };
+  const wd = (APP_STATE.appConfig && APP_STATE.appConfig.warningThresholdDays) || 30;
+  const cleanCards = [
+    { label: 'OK (Aman)', count: cl.ok, bg: '#DCFCE7', fg: '#166534', border: '#BBF7D0' },
+    { label: `Warning (H-${wd})`, count: cl.warning, bg: '#FEF3C7', fg: '#92400E', border: '#FDE68A' },
+    { label: 'Overdue (Telat)', count: cl.overdue, bg: '#FEE2E2', fg: '#991B1B', border: '#FECACA' },
+    { label: 'No History', count: cl.noHistory, bg: '#F1F5F9', fg: '#475569', border: '#E2E8F0' }
+  ];
+  if (cl.outletTanpaInterval) {
+    cleanCards.push({ label: 'Class tanpa standar INTERVAL', count: cl.outletTanpaInterval, bg: '#FFEDD5', fg: '#9A3412', border: '#FED7AA', full: true });
+  }
+
+  let clHtml = '';
+  cleanCards.forEach(c => {
+    clHtml += `
+      <div class="${c.full ? 'col-12' : 'col-6'}">
+        <div class="p-3 rounded-3" style="background:${c.bg}; border:1px solid ${c.border};">
+          <div class="small fw-semibold" style="color:${c.fg}; font-size:0.8rem;">${esc(c.label)}</div>
+          <div class="fw-bold" style="font-size:1.5rem; color:${c.fg};">${esc(c.count)} Outlet</div>
+        </div>
+      </div>`;
+  });
+  if ($('dash-cleaning-cards')) $('dash-cleaning-cards').innerHTML = clHtml;
+
+  // 3. Visit Progress
+  const vp = data.visitProgress || {};
+  const percentCompleted = Math.round(Number(data.visitAchievementBulanIni) || 0);
+  
+  if ($('dash-visit-percent')) $('dash-visit-percent').textContent = percentCompleted + '%';
+  if ($('dash-visit-bar')) $('dash-visit-bar').style.width = percentCompleted + '%';
+
+  const vpBoxes = [
+    { label: 'Rencana', count: vp.planned || 0, color: '#3B82F6' },
+    { label: 'Berjalan', count: vp.inProgress || 0, color: '#F59E0B' },
+    { label: 'Selesai', count: vp.completed || 0, color: '#16A34A' },
+    { label: 'Overdue', count: vp.overdue || 0, color: '#DC2626' }
+  ];
+  let vpHtml = '';
+  vpBoxes.forEach(b => {
+    vpHtml += `
+      <div class="col-3">
+        <div class="p-2 rounded bg-light border">
+          <div class="small text-muted" style="font-size:0.75rem;">${esc(b.label)}</div>
+          <div class="fw-bold" style="font-size:1.15rem; color:${b.color};">${esc(b.count)}</div>
+        </div>
+      </div>`;
+  });
+  if ($('dash-visit-breakdown')) $('dash-visit-breakdown').innerHTML = vpHtml;
+
+  // 4. Top QC Area
+  const topQC = data.topQCArea || [];
+  let topHtml = '';
+  if (topQC.length === 0) {
+    topHtml = '<div class="text-muted small text-center py-4">Belum ada data pemeriksaan checklist.</div>';
+  } else {
+    topQC.forEach((q, idx) => {
+      const medals = ['🥇', '🥈', '🥉'];
+      topHtml += `
+        <div class="d-flex align-items-center justify-content-between p-2 rounded-3 border bg-light">
+          <div class="d-flex align-items-center gap-2">
+            <span style="font-size:1.2rem;">${medals[idx] || (idx + 1)}</span>
+            <div>
+              <div class="fw-bold text-dark" style="font-size:0.9rem;">${esc(q.nama)}</div>
+              <div class="small text-muted">${esc(q.visitCount)} pemeriksaan</div>
+            </div>
+          </div>
+          <div class="text-end">
+            <div class="fw-bold text-success" style="font-size:1rem;">${fmtScore(q.avgScore)}%</div>
+            ${gradeBadgeHtml(q.grade)}
+          </div>
+        </div>`;
+    });
+  }
+  if ($('dash-top-qc-list')) $('dash-top-qc-list').innerHTML = topHtml;
+
+  // 5. Recent Activity
+  const actList = data.recentActivity || [];
+  const actBody = $('dash-activity-body');
+  if (actBody) {
+    if (actList.length === 0) {
+      actBody.innerHTML = '<tr><td class="text-center text-muted py-3">Belum ada aktivitas tercatat.</td></tr>';
+    } else {
+      let trs = '';
+      actList.forEach(a => {
+        trs += `
+          <tr>
+            <td class="text-muted" style="font-size:0.75rem; white-space:nowrap;">${formatDate(a.timestamp)} ${esc(String(a.timestamp || '').slice(11, 16))}</td>
+            <td class="fw-semibold" style="font-size:0.85rem;">${esc(a.user)}</td>
+            <td><span class="badge bg-secondary-subtle text-secondary py-1">${esc(a.aksi)}</span></td>
+            <td class="text-muted small">${esc(a.entity)} <span class="fw-semibold text-dark">${esc(a.entityId)}</span></td>
+          </tr>`;
+      });
+      actBody.innerHTML = trs;
+    }
+  }
+}
+</script>

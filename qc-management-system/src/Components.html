@@ -1,0 +1,487 @@
+<script>
+/**
+ * Components.html
+ * Utilitas Inti, State Management, API Wrapper, UI Helpers, dan Chart Renderer
+ * QC Management System v1.0.0
+ */
+
+// ─── DOM & ESCAPING HELPERS ──────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const $$ = sel => document.querySelectorAll(sel);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+}[c]));
+
+const norm_ = s => String(s == null ? '' : s).toLowerCase().trim();
+const isAdminUI = () => !!(APP_STATE && APP_STATE.perms && APP_STATE.perms.isAdmin);
+const can = k => !!(APP_STATE && APP_STATE.perms && APP_STATE.perms[k]);
+const pad = n => String(n).padStart(2, '0');
+const today = () => {
+  try { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()); }
+  catch (e) { const d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+};
+const firstOfMonth = () => today().slice(0, 8) + '01';
+
+const MONTH_NAMES_ID = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+];
+
+function formatDate(val) {
+  if (!val) return '-';
+  const s = String(val).trim();
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) {
+    const d = parseInt(m[3], 10);
+    const mo = parseInt(m[2], 10) - 1;
+    const y = m[1];
+    return `${d} ${MONTH_NAMES_ID[mo] || m[2]} ${y}`;
+  }
+  return s;
+}
+
+function formatMonth(ym) {
+  if (!ym) return '-';
+  const parts = String(ym).split('-');
+  if (parts.length >= 2) {
+    const mo = parseInt(parts[1], 10) - 1;
+    return `${MONTH_NAMES_ID[mo] || parts[1]} ${parts[0]}`;
+  }
+  return ym;
+}
+
+function fmtPercent(n, decimals = 1) {
+  const num = Number(n);
+  return (isNaN(num) ? 0 : num).toFixed(decimals) + '%';
+}
+
+function fmtScore(n) {
+  const num = Number(n);
+  return isNaN(num) ? '0.0' : num.toFixed(1);
+}
+
+// ─── GLOBAL APPLICATION STATE ────────────────────────────────────────────────
+let APP_STATE = {
+  token: null,
+  user: null,
+  perms: {
+    canEditCleaning: false,
+    canSubmitChecklist: false,
+    canPlanVisit: false,
+    canManageUsers: false,
+    canViewAllData: false,
+    isAdmin: false
+  },
+  outlets: [],
+  areas: [],
+  kelasList: [],
+  regions: [],
+  studios: [],
+  appConfig: {},
+  currentPage: 'dashboard'
+};
+
+const safeGet = k => { try { return sessionStorage.getItem(k); } catch (e) { return null; } };
+const safeSet = (k, v) => { try { v == null ? sessionStorage.removeItem(k) : sessionStorage.setItem(k, v); } catch (e) {} };
+
+// ─── LOADING OVERLAY & SKELETON ──────────────────────────────────────────────
+let BUSY_COUNT = 0;
+function setBusy(on) {
+  BUSY_COUNT += on ? 1 : -1;
+  if (BUSY_COUNT < 0) BUSY_COUNT = 0;
+  const loader = $('loader-overlay');
+  if (loader) loader.style.display = BUSY_COUNT > 0 ? 'flex' : 'none';
+}
+
+function showSkeleton(containerId, count = 4) {
+  const c = $(containerId);
+  if (!c) return;
+  let html = '<div class="row g-3 py-3">';
+  for (let i = 0; i < count; i++) {
+    html += `
+      <div class="col-md-6 col-lg-3">
+        <div class="card p-3 shadow-xs border-0">
+          <div class="skeleton mb-2" style="height:14px; width:60%;"></div>
+          <div class="skeleton mb-3" style="height:28px; width:40%;"></div>
+          <div class="skeleton" style="height:12px; width:80%;"></div>
+        </div>
+      </div>`;
+  }
+  html += '</div>';
+  c.innerHTML = html;
+}
+
+// ─── TOAST NOTIFICATION ──────────────────────────────────────────────────────
+function toast(message, type = 'success', duration = 4000) {
+  const container = $('toast-container');
+  if (!container) return;
+  const t = document.createElement('div');
+  const alertClass = type === 'error' ? 'alert-danger' : (type === 'warning' ? 'alert-warning' : (type === 'info' ? 'alert-info' : 'alert-success'));
+  t.className = `alert ${alertClass} shadow-md d-flex align-items-center gap-2 py-2 px-3 mb-2 animate-fade`;
+  t.style.maxWidth = '360px';
+  t.style.fontSize = '0.9rem';
+  t.style.borderRadius = '8px';
+  
+  const icon = type === 'error' ? '❌' : (type === 'warning' ? '⚠️' : (type === 'info' ? 'ℹ️' : '✅'));
+  t.innerHTML = `<span>${icon}</span><div class="flex-grow-1">${esc(message)}</div>`;
+  container.appendChild(t);
+  setTimeout(() => {
+    t.style.opacity = '0';
+    t.style.transition = 'opacity 0.3s ease';
+    setTimeout(() => t.remove(), 300);
+  }, duration);
+}
+
+// ─── API CLIENT WRAPPER ──────────────────────────────────────────────────────
+/**
+ * Panggil backend. opts.silent = tanpa overlay loading (untuk progressive/background load).
+ * Pemakaian: call('apiX', arg1, arg2)  |  callQuiet('apiX', ...)
+ */
+function _gasCall(silent, fnName, args) {
+  if (!silent) setBusy(true);
+  return new Promise((resolve, reject) => {
+    if (typeof google === 'undefined' || !google.script || !google.script.run) {
+      if (!silent) setBusy(false);
+      return reject(new Error('Koneksi Google Apps Script tidak tersedia.'));
+    }
+    google.script.run
+      .withSuccessHandler(res => {
+        if (!silent) setBusy(false);
+        if (res && res.ok) return resolve(res.data);
+        if (res && (res.code === 'SESSION_EXPIRED' || String(res.msg || '').indexOf('Sesi Anda') === 0)) {
+          if (APP_STATE.token) logout(true);
+          return reject(new Error('Sesi Anda telah berakhir. Silakan login kembali.'));
+        }
+        reject(new Error(res && res.msg ? res.msg : 'Operasi gagal diproses server.'));
+      })
+      .withFailureHandler(err => {
+        if (!silent) setBusy(false);
+        const msg = err && err.message ? err.message : 'Terjadi kegagalan komunikasi ke server.';
+        reject(new Error(/exceeded|timeout|Timeout/.test(msg)
+          ? 'Proses melebihi batas waktu server. Persempit filter lalu coba lagi.' : msg));
+      })
+      [fnName](...args);
+  });
+}
+function call(fnName, ...args) { return _gasCall(false, fnName, args); }
+function callQuiet(fnName, ...args) { return _gasCall(true, fnName, args); }
+
+/** Kunci tombol selama proses async (cegah double submit). */
+async function withButton(btn, label, fn) {
+  if (!btn) return fn();
+  if (btn.dataset.busy === '1') return;
+  const orig = btn.innerHTML;
+  btn.dataset.busy = '1';
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>${esc(label || 'Memproses…')}`;
+  try { return await fn(); }
+  finally { btn.dataset.busy = ''; btn.disabled = false; btn.innerHTML = orig; }
+}
+
+// ─── FILE / PDF HELPERS ──────────────────────────────────────────────────────
+/** Baca file PDF dari <input type=file> → {name, base64}. Validasi tipe & ukuran. */
+function readPdfInput(inputEl) {
+  return new Promise((resolve, reject) => {
+    const file = inputEl && inputEl.files && inputEl.files[0];
+    if (!file) return resolve(null);
+    const maxMb = (APP_STATE.appConfig && APP_STATE.appConfig.maxPdfMb) || 10;
+    if (!/\.pdf$/i.test(file.name) || (file.type && file.type !== 'application/pdf')) {
+      return reject(new Error('Berkas harus berformat PDF.'));
+    }
+    if (file.size > maxMb * 1024 * 1024) return reject(new Error(`Ukuran PDF melebihi ${maxMb} MB.`));
+    const reader = new FileReader();
+    reader.onload = () => resolve({ name: file.name, base64: String(reader.result).split(',')[1] });
+    reader.onerror = () => reject(new Error('Gagal membaca berkas PDF.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+let _PDF_URL = null;
+/** Buka dokumen PDF privat (diambil lewat backend setelah cek scope). */
+async function openDocument(idDocument) {
+  if (!idDocument) return;
+  try {
+    const d = await call('apiGetDocumentFile', APP_STATE.token, idDocument);
+    const bin = atob(d.base64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    if (_PDF_URL) URL.revokeObjectURL(_PDF_URL);
+    _PDF_URL = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+    $('pdf-viewer-title').textContent = d.name || 'Dokumen PDF';
+    $('pdf-viewer-frame').src = _PDF_URL;
+    const dl = $('pdf-viewer-download');
+    dl.href = _PDF_URL; dl.download = d.name || 'dokumen.pdf';
+    openModal('modal-pdf-viewer');
+  } catch (err) {
+    toast('Gagal membuka dokumen: ' + err.message, 'error');
+  }
+}
+
+/** Tombol dokumen untuk tabel. */
+function docButtonHtml(idDocument, statusDokumen) {
+  if (idDocument) return `<button class="btn btn-sm btn-outline-primary py-0 px-2" style="font-size:0.75rem;" onclick="openDocument('${esc(idDocument)}')">PDF</button>`;
+  const st = String(statusDokumen || 'Pending');
+  return `<span class="badge ${st === 'Failed' ? 'bg-danger-subtle text-danger' : 'bg-warning-subtle text-warning-emphasis'}">${st === 'Failed' ? 'Upload gagal' : 'Belum ada PDF'}</span>`;
+}
+
+// ─── PANDUAN (Instruction Popup) ─────────────────────────────────────────────
+const HELP_CONTENT = {
+  dashboard: ['Dashboard Operasional', `<p>Ringkasan seluruh data <b>sesuai hak akses</b> Anda. Angka dihitung dengan engine yang sama dengan modulnya.</p>
+    <ul><li><b>Visit Achievement</b> = outlet unik yang sudah dikunjungi ÷ outlet wajib dikunjungi.</li>
+    <li><b>Skor QC</b> = Σ skor aktual ÷ Σ skor maksimum (item N/A dikecualikan).</li>
+    <li>Cleaning <b>No Interval</b> artinya Class outlet belum memiliki standar di sheet INTERVAL.</li></ul>`],
+  organization: ['Organisasi QC', `<p>Struktur QC Office dan Tim QC Area (Kabag Area). Outlet tanggung jawab QC Area diambil dari kolom <b>KabagQCArea</b> di master KODE.</p>
+    <ul><li>Admin dapat mengubah penugasan melalui <b>Detail → Edit</b>.</li><li>Jabatan QC Office hanya ditempatkan di Office.</li></ul>`],
+  master: ['Master Data', `<p>Master outlet (sheet KODE) dan penugasan tim (sheet OP). <b>Kode Outlet</b> adalah identitas utama dan tidak dapat diubah.</p>
+    <ul><li>Outlet yang sudah memiliki transaksi tidak dapat dihapus — ubah status menjadi Inactive.</li></ul>`],
+  users: ['Master User', `<p>Kelola akun & hak akses. Kolom <b>AksesData</b> (opsional) menggantikan scope default role:</p>
+    <ul><li><code>ALL</code> — seluruh outlet</li><li><code>AREA:BEKASI 1, AREA:BEKASI 2</code></li><li><code>RM:Nama RM</code>, <code>AM:Nama AM</code>, <code>KABAG:Nama Kabag</code></li><li><code>OUTLET:KODE001</code> atau kode/nama outlet</li></ul>
+    <p>Kosongkan untuk aturan default: RM=kolom RM, AM=kolom AM, QC Area/Specialist=kolom KabagQCArea, Outlet=Kode Outlet.</p>`],
+  cleaning: ['Cleaning Monitoring', `<p>Jatuh tempo = tanggal cuci terakhir + interval bulan sesuai <b>Class</b> outlet (sheet INTERVAL), dihitung per studio & jenis.</p>
+    <ul><li><b>OVERDUE</b>: melewati jatuh tempo • <b>WARNING</b>: ≤ ambang hari peringatan • <b>No History</b>: belum ada transaksi • <b>No Interval</b>: standar Class belum ada.</li>
+    <li>Ubah "Tanggal Acuan" untuk simulasi status pada tanggal lain.</li></ul>`],
+  visit: ['Visit Management', `<ol><li>Buat jadwal (outlet hanya dari scope Anda).</li><li>Pada hari kunjungan: Detail → <b>Mulai Kunjungan</b>.</li><li>Isi checklist → kunjungan otomatis <b>Completed</b>.</li></ol>
+    <p>Status <b>Overdue</b>/<b>Upcoming</b> dihitung otomatis dari tanggal. Coverage dihitung dari outlet unik.</p>`],
+  checklist: ['QC Checklist', `<ol><li>Pilih kunjungan berstatus In Progress.</li><li>Pilih kategori (Cinema / F&amp;B / Premiere) — boleh lebih dari satu.</li><li>Beri skor 1–5 setiap item atau set N/A bila tidak berlaku.</li><li>Lampirkan PDF berita acara (boleh menyusul dari menu Rincian).</li></ol>
+    <p>Gunakan <b>Simpan Draft</b> bila pemeriksaan belum selesai.</p>`],
+  performance: ['Performa & Grading', `<p><b>Kualitas</b> (Grade) dan <b>produktivitas</b> (Visit Achievement) adalah dua indikator terpisah — QC Area tidak mendapat grade tinggi hanya karena jumlah kunjungan banyak.</p>`],
+  settings: ['Pengaturan', `<p>Konfigurasi ambang grade, warning cleaning, metode grading, master checklist, dan <b>Audit Data</b> untuk memeriksa konsistensi sheet.</p>`]
+};
+function openHelp(page) {
+  const h = HELP_CONTENT[page || APP_STATE.currentPage] || HELP_CONTENT.dashboard;
+  $('help-title').textContent = 'Panduan — ' + h[0];
+  $('help-body').innerHTML = h[1];
+  openModal('modal-help');
+}
+
+const safeAction = fn => async (...args) => {
+  try {
+    await fn(...args);
+  } catch (err) {
+    toast(err.message || 'Terjadi kesalahan.', 'error');
+  }
+};
+
+// ─── MODAL CONTROLLERS ───────────────────────────────────────────────────────
+function openModal(id) {
+  const el = $(id);
+  if (!el) return;
+  if (window.bootstrap && bootstrap.Modal) {
+    bootstrap.Modal.getOrCreateInstance(el).show();
+  } else {
+    el.style.display = 'block';
+    el.classList.add('show');
+  }
+}
+
+function closeModal(id) {
+  const el = $(id);
+  if (!el) return;
+  if (window.bootstrap && bootstrap.Modal) {
+    const inst = bootstrap.Modal.getInstance(el);
+    if (inst) inst.hide();
+  } else {
+    el.style.display = 'none';
+    el.classList.remove('show');
+  }
+}
+
+function confirmDialog(title, message, onConfirm, isDanger = false) {
+  $('confirm-title').textContent = title || 'Konfirmasi Tindakan';
+  $('confirm-body').innerHTML = message || 'Apakah Anda yakin ingin melanjutkan?';
+  const btn = $('confirm-btn-yes');
+  btn.className = isDanger ? 'btn btn-danger btn-sm px-3' : 'btn btn-primary btn-sm px-3';
+  btn.onclick = async () => {
+    closeModal('modal-confirm');
+    if (onConfirm) await onConfirm();
+  };
+  openModal('modal-confirm');
+}
+
+// ─── UI BADGES & INITIALS ────────────────────────────────────────────────────
+function avatarHtml(name, size = 'md') {
+  const s = String(name || '').trim();
+  const words = s.split(/\s+/).filter(Boolean);
+  const initials = words.length >= 2 
+    ? (words[0][0] + words[1][0]).toUpperCase()
+    : (s.slice(0, 2).toUpperCase() || 'QC');
+  const sizeMap = { sm: '32px', md: '40px', lg: '56px' };
+  const fontMap = { sm: '11px', md: '14px', lg: '20px' };
+  const dim = sizeMap[size] || '40px';
+  const fs = fontMap[size] || '14px';
+  return `<div class="avatar-circle" style="width:${dim}; height:${dim}; font-size:${fs}; border-radius:50%; background:#172554; color:#fff; display:inline-flex; align-items:center; justify-content:center; font-weight:700; flex-shrink:0;">${esc(initials)}</div>`;
+}
+
+function gradeBadgeHtml(grade) {
+  if (grade === '-' || grade === '' || grade == null) return '<span class="badge bg-secondary-subtle text-secondary">Belum ada nilai</span>';
+  const g = String(grade).toUpperCase();
+  const bgMap = {
+    A: '#16A34A', B: '#22C55E', C: '#F59E0B', D: '#F97316', E: '#DC2626'
+  };
+  const color = bgMap[g] || '#64748B';
+  return `<span class="badge" style="background:${color}; color:#fff; font-weight:700; padding:4px 8px; border-radius:6px; font-size:0.75rem;">Grade ${esc(g)}</span>`;
+}
+
+function statusBadgeHtml(status) {
+  const st = String(status || '').toUpperCase();
+  let bg = '#64748B', fg = '#fff';
+  if (st === 'NO INTERVAL') { bg = '#FFEDD5'; fg = '#9A3412'; }
+  else if (st === 'UPCOMING') { bg = '#E0F2FE'; fg = '#075985'; }
+  else if (st === 'CANCELLED') { bg = '#F1F5F9'; fg = '#64748B'; }
+  if (st === 'OK' || st === 'COMPLETED' || st === 'ACTIVE') {
+    bg = '#DCFCE7'; fg = '#166534';
+  } else if (st === 'WARNING' || st === 'IN PROGRESS') {
+    bg = '#FEF3C7'; fg = '#92400E';
+  } else if (st === 'OVERDUE' || st === 'FAILED' || st === 'INACTIVE') {
+    bg = '#FEE2E2'; fg = '#991B1B';
+  } else if (st === 'PLANNED') {
+    bg = '#DBEAFE'; fg = '#1E40AF';
+  } else if (st === 'RESCHEDULED') {
+    bg = '#EDE9FE'; fg = '#5B21B6';
+  } else if (st === 'NO HISTORY') {
+    bg = '#F1F5F9'; fg = '#475569';
+  }
+  return `<span class="badge" style="background:${bg}; color:${fg}; font-weight:600; padding:4px 8px; border-radius:6px; font-size:0.75rem;">${esc(status)}</span>`;
+}
+
+// ─── FORM & SELECT POPULATOR ─────────────────────────────────────────────────
+function populateSelect(selectId, items, valueKey, labelKey, withAll = false, allLabel = 'Semua') {
+  const el = $(selectId);
+  if (!el) return;
+  let html = withAll ? `<option value="">— ${esc(allLabel)} —</option>` : '';
+  (items || []).forEach(it => {
+    const val = typeof it === 'object' && it !== null ? it[valueKey] : it;
+    const lbl = typeof it === 'object' && it !== null ? (it[labelKey] || it[valueKey]) : it;
+    html += `<option value="${esc(val)}">${esc(lbl)}</option>`;
+  });
+  el.innerHTML = html;
+}
+
+// ─── GENERIC TABLE BUILDER ───────────────────────────────────────────────────
+function buildTable(containerId, columns, rows, options = {}) {
+  const el = $(containerId);
+  if (!el) return;
+  if (!rows || rows.length === 0) {
+    el.innerHTML = `
+      <div class="empty-state p-4 text-center text-muted">
+        <svg width="40" height="40" fill="none" stroke="#94A3B8" stroke-width="1.5" viewBox="0 0 24 24" class="mb-2">
+          <path d="M20 13V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7m16 0v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-5m16 0h-2.586a1 1 0 0 0-.707.293l-2.414 2.414a1 1 0 0 1-.707.293h-3.172a1 1 0 0 1-.707-.293l-2.414-2.414A1 1 0 0 0 6.586 13H4"/>
+        </svg>
+        <div class="fw-semibold">${esc(options.emptyText || 'Tidak ada data ditemukan.')}</div>
+      </div>`;
+    return;
+  }
+
+  let html = '<div class="table-responsive"><table class="table table-hover align-middle mb-0 data-table">';
+  html += '<thead style="background:#F8FAFC; border-bottom:2px solid #E2E8F0;"><tr>';
+  columns.forEach(c => {
+    const w = c.width ? `style="width:${c.width};"` : '';
+    html += `<th class="text-secondary fw-semibold py-2 px-3" ${w} style="font-size:0.8rem; letter-spacing:0.3px;">${esc(c.label)}</th>`;
+  });
+  html += '</tr></thead><tbody>';
+
+  rows.forEach((r, idx) => {
+    html += '<tr style="border-bottom:1px solid #F1F5F9;">';
+    columns.forEach(c => {
+      const cellVal = c.render ? c.render(r, idx) : esc(r[c.key]);
+      html += `<td class="py-2 px-3" style="font-size:0.88rem;">${cellVal}</td>`;
+    });
+    html += '</tr>';
+  });
+
+  html += '</tbody></table></div>';
+  el.innerHTML = html;
+}
+
+// ─── CHART.JS INSTANCE MANAGER ───────────────────────────────────────────────
+let CHARTS = {};
+function destroyChart(id) {
+  if (CHARTS[id]) {
+    try { CHARTS[id].destroy(); } catch (e) {}
+    delete CHARTS[id];
+  }
+}
+
+function barChart(canvasId, labels, data, colors, isHorizontal = false) {
+  destroyChart(canvasId);
+  const canvas = $(canvasId);
+  if (!canvas || !window.Chart) return;
+  CHARTS[canvasId] = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        data: data,
+        backgroundColor: colors || '#3B82F6',
+        borderRadius: 4
+      }]
+    },
+    options: {
+      indexAxis: isHorizontal ? 'y' : 'x',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          padding: 10,
+          cornerRadius: 6
+        }
+      },
+      scales: {
+        x: { grid: { display: false } },
+        y: { grid: { color: '#F1F5F9' }, beginAtZero: true }
+      }
+    }
+  });
+}
+
+function lineChart(canvasId, labels, datasets) {
+  destroyChart(canvasId);
+  const canvas = $(canvasId);
+  if (!canvas || !window.Chart) return;
+  CHARTS[canvasId] = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: datasets
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top', labels: { boxWidth: 12 } }
+      },
+      scales: {
+        y: { beginAtZero: true, max: 100, grid: { color: '#F1F5F9' } },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+}
+
+function doughnutChart(canvasId, labels, data, colors) {
+  destroyChart(canvasId);
+  const canvas = $(canvasId);
+  if (!canvas || !window.Chart) return;
+  CHARTS[canvasId] = new Chart(canvas, {
+    type: 'doughnut',
+    data: {
+      labels: labels,
+      datasets: [{
+        data: data,
+        backgroundColor: colors || ['#16A34A', '#22C55E', '#F59E0B', '#F97316', '#DC2626'],
+        borderWidth: 2,
+        borderColor: '#FFFFFF'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } }
+      },
+      cutout: '68%'
+    }
+  });
+}
+</script>

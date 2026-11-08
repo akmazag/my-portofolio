@@ -1,0 +1,742 @@
+<!-- Visit.html — QC Management System: Visit Management & Timeline -->
+<div id="view-visit" class="module-view" style="display:none;">
+
+  <!-- ── SUB-TABS NAVIGASI VISIT ── -->
+  <div class="d-flex flex-wrap align-items-center justify-content-between mb-3 border-bottom pb-2 gap-2">
+    <ul class="nav nav-pills gap-2" id="visit-subtabs">
+      <li class="nav-item">
+        <button class="nav-link active px-3 py-2 fw-semibold" id="btn-vs-timeline" onclick="switchVisitTab('timeline')">Timeline Matrix</button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link px-3 py-2 fw-semibold" id="btn-vs-planning" onclick="switchVisitTab('planning')">Daftar Kunjungan</button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link px-3 py-2 fw-semibold" id="btn-vs-coverage" onclick="switchVisitTab('coverage')">Coverage Monitoring</button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link px-3 py-2 fw-semibold" id="btn-vs-progress" onclick="switchVisitTab('progress')">Progress &amp; Ranking</button>
+      </li>
+    </ul>
+
+    <button class="btn btn-sm btn-primary px-3 py-2" id="btn-create-visit" onclick="openCreateVisitModal()">
+      + Buat Jadwal Visit
+    </button>
+  </div>
+
+  <!-- ── FILTER BAR VISIT ── -->
+  <div class="card p-3 border-0 shadow-xs mb-3 bg-white">
+    <div class="row g-2 align-items-end">
+      <div class="col-6 col-md-2">
+        <label class="form-label small fw-semibold text-secondary mb-1">Bulan Operasional</label>
+        <input type="month" class="form-control form-control-sm" id="vs-filter-month" onchange="loadVisit()">
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label small fw-semibold text-secondary mb-1">Periode Target</label>
+        <select class="form-select form-select-sm" id="vs-filter-periode" onchange="loadVisit()" title="Periode perhitungan Visit Achievement (mulai bulan terpilih)">
+          <option value="1">1 bulan</option>
+          <option value="3" selected>3 bulan</option>
+          <option value="6">6 bulan</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small fw-semibold text-secondary mb-1">Filter QC Area</label>
+        <select class="form-select form-select-sm" id="vs-filter-qc" onchange="renderActiveVisitView()">
+          <option value="">Semua QC Area</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small fw-semibold text-secondary mb-1">Status Kunjungan</label>
+        <select class="form-select form-select-sm" id="vs-filter-status" onchange="renderActiveVisitView()">
+          <option value="">Semua Status</option>
+          <option value="Planned">Planned (Terencana)</option>
+          <option value="Upcoming">Upcoming (≤ 7 hari)</option>
+          <option value="In Progress">In Progress (Sedang Berjalan)</option>
+          <option value="Completed">Completed (Selesai)</option>
+          <option value="Rescheduled">Rescheduled (Dijadwal Ulang)</option>
+          <option value="Overdue">Overdue (Terlewat)</option>
+          <option value="Cancelled">Cancelled (Dibatalkan)</option>
+        </select>
+      </div>
+      <div class="col-md-2 d-flex gap-2">
+        <button class="btn btn-sm btn-dark w-100" onclick="loadVisit()">Tampilkan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── KONTEN VIEW TAB 1: TIMELINE MATRIX ── -->
+  <div id="vs-view-timeline" class="vs-subview">
+    <div class="card p-3 border-0 shadow-xs bg-white">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="fw-bold" style="color:#172554;">Matrix Kunjungan QC Area Bulanan</div>
+        <div class="small text-muted d-flex gap-2 align-items-center">
+          <span class="d-inline-block rounded-circle" style="width:10px; height:10px; background:#16A34A;"></span> Selesai
+          <span class="d-inline-block rounded-circle" style="width:10px; height:10px; background:#3B82F6;"></span> Rencana
+          <span class="d-inline-block rounded-circle" style="width:10px; height:10px; background:#F59E0B;"></span> Berjalan
+        </div>
+      </div>
+      <div id="vs-timeline-grid-box" class="table-responsive" style="max-height: 60vh; overflow: auto;"></div>
+    </div>
+  </div>
+
+  <!-- ── KONTEN VIEW TAB 2: PLANNING / DAFTAR VISIT ── -->
+  <div id="vs-view-planning" class="vs-subview" style="display:none;">
+    <div class="card border-0 shadow-xs bg-white">
+      <div id="vs-planning-table-box"></div>
+    </div>
+  </div>
+
+  <!-- ── KONTEN VIEW TAB 3: COVERAGE MONITORING ── -->
+  <div id="vs-view-coverage" class="vs-subview" style="display:none;">
+    <!-- 4 KPI Cards Coverage -->
+    <div class="row g-3 mb-3" id="vs-coverage-cards"></div>
+
+    <div class="row g-3">
+      <!-- Tabel Outlet Belum Dikunjungi -->
+      <div class="col-lg-6">
+        <div class="card p-3 border-0 shadow-xs bg-white h-100">
+          <div class="fw-bold mb-2 text-danger">Outlet Belum Dikunjungi Bulan Ini</div>
+          <div id="vs-not-visited-table-box"></div>
+        </div>
+      </div>
+
+      <!-- Tabel Coverage per QC Area -->
+      <div class="col-lg-6">
+        <div class="card p-3 border-0 shadow-xs bg-white h-100">
+          <div class="fw-bold mb-2 text-primary">Coverage per QC Area</div>
+          <div id="vs-qc-coverage-table-box"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── KONTEN VIEW TAB 4: PROGRESS & RANKING ── -->
+  <div id="vs-view-progress" class="vs-subview" style="display:none;">
+    <div class="row g-3 mb-3">
+      <div class="col-lg-6">
+        <div class="card p-3 border-0 shadow-xs bg-white h-100">
+          <div class="fw-bold mb-2 text-dark">Tren Planned vs Completed (6 Bulan)</div>
+          <div style="height:240px;"><canvas id="chart-visit-progress"></canvas></div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="card p-3 border-0 shadow-xs bg-white h-100">
+          <div class="fw-bold mb-2 text-dark">Ranking Coverage QC Area</div>
+          <div id="vs-ranking-table-box"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── MODAL BUAT VISIT BARU ── -->
+<div class="modal fade" id="modal-create-visit" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-md">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header" style="background:#172554; color:#fff;">
+        <h5 class="modal-title mb-0">Buat Rencana Kunjungan</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form onsubmit="saveNewVisit(event)">
+        <div class="modal-body p-4">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">QC Area <span class="text-danger">*</span></label>
+            <select class="form-select form-select-sm" id="inp-vs-qc" required onchange="onVisitQcChange()">
+              <option value="">— Pilih QC Area —</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Outlet Tujuan <span class="text-danger">*</span></label>
+            <select class="form-select form-select-sm" id="inp-vs-outlet" required>
+              <option value="">— Pilih Outlet —</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Tanggal Rencana <span class="text-danger">*</span></label>
+            <input type="date" class="form-control form-control-sm" id="inp-vs-date" required>
+            <div class="form-text" style="font-size:0.75rem;">Jadwal dianjurkan dibuat minimal horizon 3 bulan ke depan.</div>
+          </div>
+
+          <div class="mb-2">
+            <label class="form-label small fw-semibold">Keterangan / Fokus Pemeriksaan</label>
+            <textarea class="form-control form-control-sm" id="inp-vs-ket" rows="2" placeholder="Pemeriksaan rutin Cinema &amp; FnB…"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Batal</button>
+          <button type="submit" class="btn btn-sm btn-primary px-3" id="inp-vs-btn">Simpan Rencana</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL DETAIL & AKSI VISIT ── -->
+<div class="modal fade" id="modal-visit-detail" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-md">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header" style="background:#172554; color:#fff;">
+        <div>
+          <h5 class="modal-title mb-0" id="mod-vs-outlet-title">Detail Kunjungan</h5>
+          <span class="small opacity-75" id="mod-vs-id"></span>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4" id="mod-vs-body">
+        <!-- Populated -->
+      </div>
+      <div class="modal-footer d-flex justify-content-between">
+        <div id="mod-vs-actions" class="d-flex gap-2"></div>
+        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Tutup</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL JADWAL ULANG (RESCHEDULE) ── -->
+<div class="modal fade" id="modal-visit-reschedule" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-warning text-dark">
+        <h6 class="modal-title mb-0 fw-bold">Jadwal Ulang Visit</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form onsubmit="submitReschedule(event)">
+        <div class="modal-body p-3">
+          <input type="hidden" id="resched-id-visit">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Tanggal Baru <span class="text-danger">*</span></label>
+            <input type="date" class="form-control form-control-sm" id="resched-new-date" required>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small fw-semibold">Alasan Penjadwalan Ulang <span class="text-danger">*</span></label>
+            <textarea class="form-control form-control-sm" id="resched-reason" rows="2" required placeholder="Jadwal operasional outlet…"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Batal</button>
+          <button type="submit" class="btn btn-sm btn-warning fw-semibold">Simpan Perubahan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+/**
+ * Visit Controller Logic
+ */
+let VISIT_CACHE = { visits: [], coverage: null, timeline: null, all: null };
+let CURRENT_VISIT_TAB = 'timeline';
+let SELECTED_VISIT_ITEM = null;
+
+// Backend mengembalikan camelCase; UI memakai nama kolom sheet LOG_VISIT
+function _normVisit(v) {
+  v = v || {};
+  return {
+    IDVisit:          v.idVisit          || v.IDVisit          || '',
+    TanggalRencana:   v.tanggalRencana   || v.TanggalRencana   || '',
+    NamaQCArea:       v.namaQCArea       || v.NamaQCArea       || '',
+    KodeOutlet:       v.kodeOutlet       || v.KodeOutlet       || '',
+    NamaOutlet:       v.namaOutlet       || v.NamaOutlet       || '',
+    Area:             v.area             || v.Area             || '',
+    Region:           v.region           || v.Region           || '',
+    Status:           v.status           || v.Status           || '',
+    TanggalRealisasi: v.tanggalRealisasi || v.TanggalRealisasi || '',
+    ChecklistID:      v.checklistID      || v.ChecklistID      || '',
+    Keterangan:       v.keterangan       || v.Keterangan       || '',
+    StatusEfektif:    v.statusEfektif    || v.status || v.Status || ''
+  };
+}
+
+async function loadVisit() {
+  const mInput = $('vs-filter-month');
+  if (mInput && !mInput.value) {
+    mInput.value = today().slice(0, 7);
+  }
+
+  showSkeleton('vs-timeline-grid-box', 4);
+  try {
+    const ym = mInput.value;
+    const periode = Number(($('vs-filter-periode') || {}).value || 3);
+    const [visRes, covRes, tlRes] = await Promise.all([
+      call('apiGetVisits', APP_STATE.token, { bulan: ym }),
+      callQuiet('apiVisitCoverage', APP_STATE.token, { bulan: Number(ym.slice(5, 7)), tahun: Number(ym.slice(0, 4)), periode: periode }),
+      callQuiet('apiVisitTimeline', APP_STATE.token, ym)
+    ]);
+
+    VISIT_CACHE.visits   = ((visRes && visRes.data) || []).map(_normVisit);
+    VISIT_CACHE.coverage = covRes;
+    VISIT_CACHE.timeline = tlRes;
+    VISIT_CACHE.all      = null;   // reset cache tren
+
+    // Populate filter QC Area
+    const qcs = [...new Set(VISIT_CACHE.visits.map(v => v['NamaQCArea']).filter(Boolean))].sort();
+    const prevQc = $('vs-filter-qc').value;
+    populateSelect('vs-filter-qc', qcs, null, null, true, 'Semua QC Area');
+    $('vs-filter-qc').value = qcs.includes(prevQc) ? prevQc : '';
+
+    renderActiveVisitView();
+  } catch (err) {
+    toast('Gagal memuat data visit: ' + err.message, 'error');
+  }
+}
+
+function switchVisitTab(tab) {
+  CURRENT_VISIT_TAB = tab;
+  const btnMap = {
+    'timeline': 'btn-vs-timeline',
+    'planning': 'btn-vs-planning',
+    'coverage': 'btn-vs-coverage',
+    'progress': 'btn-vs-progress'
+  };
+  Object.keys(btnMap).forEach(k => {
+    const el = $(btnMap[k]);
+    if (el) el.classList.toggle('active', k === tab);
+  });
+
+  $$('.vs-subview').forEach(v => v.style.display = 'none');
+  const target = $(`vs-view-${tab}`);
+  if (target) target.style.display = 'block';
+
+  renderActiveVisitView();
+}
+
+function renderActiveVisitView() {
+  if (CURRENT_VISIT_TAB === 'timeline') {
+    renderVisitTimelineMatrix();
+  } else if (CURRENT_VISIT_TAB === 'planning') {
+    renderVisitPlanningTable();
+  } else if (CURRENT_VISIT_TAB === 'coverage') {
+    renderVisitCoverage();
+  } else if (CURRENT_VISIT_TAB === 'progress') {
+    renderVisitProgress();
+  }
+}
+
+function renderVisitTimelineMatrix() {
+  const tl = VISIT_CACHE.timeline;
+  if (!tl || !tl.days) {
+    $('vs-timeline-grid-box').innerHTML = '<div class="text-center text-muted p-4">Tidak ada data timeline bulan ini.</div>';
+    return;
+  }
+
+  const qcFilter = ($('vs-filter-qc').value || '').toLowerCase();
+  const stFilter = ($('vs-filter-status').value || '').toLowerCase();
+  const visits = (tl.visits || []).filter(v =>
+    (!qcFilter || String(v.namaQC || '').toLowerCase() === qcFilter) &&
+    (!stFilter || String(v.status || '').toLowerCase() === stFilter || String(v.statusEfektif || '').toLowerCase() === stFilter));
+  const outlets = (tl.outlets || []).map(o => (typeof o === 'string' ? o : (o.nama || '')));
+
+  const visitMap = {};
+  visits.forEach(v => {
+    const k = `${v.outlet}|${v.day}`;
+    if (!visitMap[k]) visitMap[k] = [];
+    visitMap[k].push(v);
+  });
+
+  let html = '<table class="table table-bordered table-sm align-middle text-center mb-0" style="font-size:0.75rem;">';
+  html += '<thead style="background:#F8FAFC;"><tr><th style="min-width:180px; text-align:left; position:sticky; left:0; background:#F8FAFC; z-index:2;">Outlet</th>';
+  for (let i = 1; i <= tl.days; i++) {
+    html += `<th style="width:28px;">${i}</th>`;
+  }
+  html += '<th>Total</th></tr></thead><tbody>';
+
+  outlets.forEach(o => {
+    let rowCount = 0;
+    html += `<tr><td style="text-align:left; font-weight:600; position:sticky; left:0; background:#fff; z-index:1;">${esc(o)}</td>`;
+    for (let i = 1; i <= tl.days; i++) {
+      const vArr = visitMap[`${o}|${i}`];
+      if (vArr && vArr.length > 0) {
+        rowCount += vArr.length;
+        const last = vArr[vArr.length - 1];
+        const se = last.statusEfektif || last.status;
+        const color = se === 'Completed' ? '#16A34A' : (se === 'In Progress' ? '#F59E0B' : (se === 'Overdue' ? '#DC2626' : (se === 'Cancelled' ? '#94A3B8' : '#3B82F6')));
+        html += `
+          <td class="p-0">
+            <span class="d-inline-block rounded-circle cursor-pointer text-white fw-bold" 
+                  style="width:20px; height:20px; line-height:20px; font-size:0.65rem; background:${color};"
+                  title="${esc(last.namaQC || 'QC')} (${esc(last.statusEfektif || last.status)})"
+                  onclick="viewVisitDetailById('${esc(last.idVisit)}')">
+              ${vArr.length > 1 ? vArr.length : '•'}
+            </span>
+          </td>`;
+      } else {
+        html += '<td class="text-muted p-0" style="opacity:0.3;">·</td>';
+      }
+    }
+    html += `<td class="fw-bold text-dark">${rowCount}</td></tr>`;
+  });
+
+  html += '</tbody></table>';
+  $('vs-timeline-grid-box').innerHTML = html;
+}
+
+function renderVisitPlanningTable() {
+  const qcFilter = ($('vs-filter-qc').value || '').toLowerCase();
+  const stFilter = ($('vs-filter-status').value || '').toLowerCase();
+
+  const filtered = (VISIT_CACHE.visits || []).filter(v => {
+    if (qcFilter && String(v['NamaQCArea'] || '').toLowerCase() !== qcFilter) return false;
+    if (stFilter && String(v['Status'] || '').toLowerCase() !== stFilter && String(v['StatusEfektif'] || '').toLowerCase() !== stFilter) return false;
+    return true;
+  });
+
+  const cols = [
+    { key: 'TanggalRencana', label: 'Tgl Rencana', render: r => formatDate(r['TanggalRencana']) },
+    { key: 'NamaQCArea', label: 'QC Area', render: r => `<div class="d-flex align-items-center gap-1">${avatarHtml(r['NamaQCArea'], 'sm')}<span class="fw-semibold">${esc(r['NamaQCArea'])}</span></div>` },
+    { key: 'NamaOutlet', label: 'Outlet', render: r => `<span class="fw-bold text-dark">${esc(r['NamaOutlet'])}</span>` },
+    { key: 'Area', label: 'Area', render: r => esc(r['Area'] || '-') },
+    { key: 'Status', label: 'Status', render: r => statusBadgeHtml(r['StatusEfektif'] || r['Status'] || 'Planned') },
+    { key: 'TanggalRealisasi', label: 'Tgl Realisasi', render: r => formatDate(r['TanggalRealisasi']) },
+    { 
+      key: 'ChecklistID', 
+      label: 'Checklist', 
+      render: r => {
+        if (r['ChecklistID']) return `<span class="badge bg-success-subtle text-success">Tersubmit</span>`;
+        const st = norm_(r['Status']);
+        if (st === 'in progress' && can('canSubmitChecklist')) {
+          return `<button class="btn btn-sm btn-primary py-0 px-2" style="font-size:0.75rem;" onclick="startChecklistForVisit('${esc(r['IDVisit'])}')">Isi Checklist</button>`;
+        }
+        if (st === 'planned' || st === 'rescheduled') {
+          return `<span class="small text-muted">Mulai kunjungan dulu</span>`;
+        }
+        return '-';
+      }
+    },
+    { 
+      key: 'aksi', 
+      label: 'Aksi', 
+      render: r => `<button class="btn btn-sm btn-light border py-1 px-2" style="font-size:0.75rem;" onclick="viewVisitDetailById('${esc(r['IDVisit'])}')">Detail</button>` 
+    }
+  ];
+
+  buildTable('vs-planning-table-box', cols, filtered, { emptyText: 'Tidak ada jadwal visit yang terdaftar.' });
+}
+
+function renderVisitCoverage() {
+  const cov = VISIT_CACHE.coverage || {};
+  const total = cov.totalOutletScope || 0;
+  const visited = cov.outletVisited || 0;
+  const pct = cov.coveragePercent || 0;
+  const outstanding = (cov.outletNotVisited || []).length;
+
+  const per = cov.periode ? `${formatMonth(cov.periode.dari)} – ${formatMonth(cov.periode.sampai)}` : '';
+  const cards = [
+    { label: 'Outlet Wajib Dikunjungi', val: total, color: '#172554', bg: '#F8FAFC', sub: per },
+    { label: 'Outlet Dikunjungi (unik)', val: visited, color: '#16A34A', bg: '#DCFCE7', sub: `${cov.kunjunganBerulang || 0} kunjungan berulang` },
+    { label: 'Visit Achievement', val: pct + '%', color: '#3B82F6', bg: '#DBEAFE', sub: `${cov.totalJadwal || 0} jadwal dalam periode` },
+    { label: 'Outlet Belum Dikunjungi', val: outstanding, color: '#DC2626', bg: '#FEE2E2', sub: `${(cov.summary || {}).overdue || 0} jadwal overdue` }
+  ];
+
+  let cHtml = '';
+  cards.forEach(c => {
+    cHtml += `
+      <div class="col-6 col-md-3">
+        <div class="card p-3 border-0 shadow-xs" style="background:${c.bg}; border-radius:10px;">
+          <div class="small fw-semibold text-secondary">${esc(c.label)}</div>
+          <div class="fw-bold" style="font-size:1.6rem; color:${c.color};">${esc(c.val)}</div>
+          ${c.sub ? `<div class="kpi-sub">${esc(c.sub)}</div>` : ''}
+        </div>
+      </div>`;
+  });
+  if ($('vs-coverage-cards')) $('vs-coverage-cards').innerHTML = cHtml;
+
+  // Not Visited table
+  const notCols = [
+    { key: 'outlet', label: 'Outlet', render: r => `<span class="fw-bold text-danger">${esc(r.outlet)}</span>` },
+    { key: 'kelas', label: 'Class', render: r => esc(r.kelas || '-') },
+    { key: 'area', label: 'Area', render: r => esc(r.area || '-') },
+    { key: 'qcArea', label: 'QC Area', render: r => esc(r.qcArea || '-') },
+    { key: 'jadwal', label: 'Jadwal', render: r => r.jadwal ? formatDate(r.jadwal) : '<span class="badge bg-danger-subtle text-danger">Belum dijadwalkan</span>' }
+  ];
+  buildTable('vs-not-visited-table-box', notCols, cov.outletNotVisited || [], { emptyText: 'Semua outlet telah mendapatkan kunjungan!' });
+
+  // By QC Area coverage table
+  const qcCols = [
+    { key: 'nama', label: 'QC Area', render: r => esc(r.nama) },
+    { key: 'visited', label: 'Selesai / Total', render: r => `${r.visited} / ${r.totalOutlet}` },
+    { 
+      key: 'coverage', 
+      label: 'Coverage', 
+      render: r => `
+        <div class="d-flex align-items-center gap-2">
+          <div class="progress flex-grow-1" style="height:6px;">
+            <div class="progress-bar ${r.coverage >= 100 ? 'bg-success' : 'bg-primary'}" style="width:${Math.min(r.coverage, 100)}%;"></div>
+          </div>
+          <span class="small fw-bold">${r.coverage}%</span>
+        </div>` 
+    }
+  ];
+  buildTable('vs-qc-coverage-table-box', qcCols, cov.byQCArea || [], { emptyText: 'Belum ada data coverage.' });
+}
+
+function renderVisitProgress() {
+  const cov = VISIT_CACHE.coverage || {};
+  const byQC = (cov.byQCArea || []).slice().sort((a, b) => b.coverage - a.coverage);
+
+  const rankCols = [
+    { key: 'rank', label: 'Rank', render: (r, idx) => idx === 0 ? '🥇' : (idx === 1 ? '🥈' : (idx === 2 ? '🥉' : idx + 1)) },
+    { key: 'nama', label: 'QC Area', render: r => `<span class="fw-bold">${esc(r.nama)}</span>` },
+    { key: 'visited', label: 'Kunjungan', render: r => `${r.visited} outlet` },
+    { key: 'coverage', label: 'Coverage', render: r => `<span class="badge ${r.coverage >= 100 ? 'bg-success' : 'bg-primary'}">${r.coverage}%</span>` }
+  ];
+  buildTable('vs-ranking-table-box', rankCols, byQC, { emptyText: 'Belum ada data ranking.' });
+
+  // Progress Bar Chart — 6 bulan terakhir dari data LOG_VISIT
+  drawVisitProgressChart();
+}
+
+async function drawVisitProgressChart() {
+  try {
+    if (!VISIT_CACHE.all) {
+      const res = await call('apiGetVisits', APP_STATE.token, {});
+      VISIT_CACHE.all = ((res && res.data) || []).map(_normVisit);
+    }
+  } catch (err) {
+    toast('Gagal memuat tren kunjungan: ' + err.message, 'error');
+    return;
+  }
+
+  const base = ($('vs-filter-month').value || today().slice(0, 7));
+  let y = parseInt(base.slice(0, 4), 10), m = parseInt(base.slice(5, 7), 10);
+  const keys = [];
+  for (let k = 0; k < 6; k++) {
+    keys.unshift(`${y}-${pad(m)}`);
+    m--; if (m === 0) { m = 12; y--; }
+  }
+  const planned = keys.map(() => 0);
+  const completed = keys.map(() => 0);
+  VISIT_CACHE.all.forEach(v => {
+    const idx = keys.indexOf(String(v.TanggalRencana || '').slice(0, 7));
+    if (idx < 0) return;
+    const st = norm_(v.Status);
+    if (st === 'cancelled') return;
+    planned[idx]++;
+    if (st === 'completed') completed[idx]++;
+  });
+  const labels = keys.map(k => formatMonth(k).split(' ')[0].slice(0, 3) + ' ' + k.slice(2, 4));
+
+  destroyChart('chart-visit-progress');
+  const canvas = $('chart-visit-progress');
+  if (canvas && window.Chart) {
+    CHARTS['chart-visit-progress'] = new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          { label: 'Planned', data: planned, backgroundColor: '#94A3B8', borderRadius: 4 },
+          { label: 'Completed', data: completed, backgroundColor: '#16A34A', borderRadius: 4 }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'top', labels: { boxWidth: 10 } } },
+        scales: { y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: '#F1F5F9' } }, x: { grid: { display: false } } }
+      }
+    });
+  }
+}
+
+let VISIT_FORM_OPTS = null;
+async function openCreateVisitModal() {
+  if (!can('canPlanVisit')) { toast('Role Anda tidak dapat membuat jadwal kunjungan.', 'warning'); return; }
+  try {
+    VISIT_FORM_OPTS = await call('apiVisitFormOptions', APP_STATE.token);
+  } catch (err) {
+    toast('Gagal memuat data QC Area: ' + err.message, 'error');
+    return;
+  }
+  const qcs = (VISIT_FORM_OPTS.qcAreas || []).map(q => ({ v: q.nama, l: `${q.nama} (${q.outlets.length} outlet)` }));
+  if (!qcs.length) { toast('Belum ada personel QC Area dalam scope Anda.', 'warning'); return; }
+  $('inp-vs-qc').innerHTML = qcs.map(q => `<option value="${esc(q.v)}">${esc(q.l)}</option>`).join('');
+  $('inp-vs-qc').disabled = !VISIT_FORM_OPTS.canChooseQC;
+  $('inp-vs-date').value = today();
+  $('inp-vs-date').min = today();
+  $('inp-vs-ket').value  = '';
+  onVisitQcChange();
+  openModal('modal-create-visit');
+}
+
+function onVisitQcChange() {
+  const opts = VISIT_FORM_OPTS || { qcAreas: [], outlets: [] };
+  const qc = (opts.qcAreas || []).find(q => q.nama === $('inp-vs-qc').value);
+  const mine = qc && qc.outlets.length ? qc.outlets : null;
+  const list = (opts.outlets || []).filter(o => !mine || mine.indexOf(o.kode) >= 0);
+  $('inp-vs-outlet').innerHTML = list.map(o => `<option value="${esc(o.kode)}">${esc(o.nama)} — ${esc(o.area || '')}</option>`).join('')
+    || '<option value="">(tidak ada outlet)</option>';
+}
+
+async function saveNewVisit(event) {
+  event.preventDefault();
+  const btn = $('inp-vs-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Menyimpan…';
+
+  const payload = {
+    tanggalRencana: $('inp-vs-date').value,
+    namaQCArea: $('inp-vs-qc').value,
+    kodeOutlet: $('inp-vs-outlet').value,
+    keterangan: $('inp-vs-ket').value
+  };
+
+  try {
+    if (!payload.kodeOutlet) throw new Error('Pilih outlet tujuan.');
+    const res = await call('apiCreateVisit', APP_STATE.token, payload);
+    closeModal('modal-create-visit');
+    toast('Jadwal kunjungan baru berhasil dibuat.', 'success');
+    if (res && res.warning) toast(res.warning, 'warning', 6000);
+    await loadVisit();
+  } catch (err) {
+    toast('Gagal membuat jadwal: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Simpan Rencana';
+  }
+}
+
+async function viewVisitDetailById(id) {
+  try {
+    const data = await call('apiGetVisitDetail', APP_STATE.token, id);
+    const v = _normVisit(data.visit || {});
+    SELECTED_VISIT_ITEM = v;
+
+    $('mod-vs-outlet-title').textContent = v['NamaOutlet'] || v['Outlet'];
+    $('mod-vs-id').textContent = `ID Visit: ${v['IDVisit'] || id} | Status: ${v['StatusEfektif'] || v['Status']}`;
+
+    let bHtml = `
+      <div class="mb-3 p-3 bg-light rounded-3">
+        <div class="row g-2">
+          <div class="col-6"><span class="text-muted small">QC Area:</span> <div class="fw-bold">${esc(v['NamaQCArea'])}</div></div>
+          <div class="col-6"><span class="text-muted small">Tgl Rencana:</span> <div class="fw-bold">${formatDate(v['TanggalRencana'])}</div></div>
+          <div class="col-6"><span class="text-muted small">Area / Regio:</span> <div>${esc(v['Area'])} (${esc(v['Region'])})</div></div>
+          <div class="col-6"><span class="text-muted small">Realisasi:</span> <div>${formatDate(v['TanggalRealisasi'])}</div></div>
+        </div>
+      </div>
+      <div class="mb-3">
+        <div class="fw-semibold small text-secondary mb-1">Keterangan:</div>
+        <p class="small text-dark mb-0">${esc(v['Keterangan'] || 'Tidak ada catatan.')}</p>
+      </div>`;
+
+    // Riwayat perubahan status
+    const hist = (data.history || []).map(h => ({
+      Timestamp:  h.timestamp  || h.Timestamp  || '',
+      StatusLama: h.statusLama || h.StatusLama || '',
+      StatusBaru: h.statusBaru || h.StatusBaru || '',
+      ChangedBy:  h.changedBy  || h.ChangedBy  || '',
+      Keterangan: h.keterangan || h.Keterangan || ''
+    }));
+    if (hist.length > 0) {
+      bHtml += `
+        <div class="mb-2">
+          <div class="fw-semibold small text-secondary mb-1">Riwayat Status:</div>
+          <div class="d-flex flex-column gap-1" style="max-height:100px; overflow-y:auto;">
+            ${hist.map(h => `
+              <div class="small p-1 border rounded bg-white">
+                <span class="text-muted">${formatDate(h['Timestamp'])}</span>: 
+                <span class="fw-bold">${esc(h['StatusLama'])}</span> → <span class="fw-bold text-primary">${esc(h['StatusBaru'])}</span>
+                <span class="text-muted">(${esc(h['ChangedBy'])})</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>`;
+    }
+
+    $('mod-vs-body').innerHTML = bHtml;
+
+    // Action buttons
+    let actHtml = '';
+    const st = String(v['Status'] || '').toLowerCase();
+    const canManage = !!(data.visit && data.visit.canManage);
+    if (canManage && (st === 'planned' || st === 'rescheduled' || st === 'overdue')) {
+      actHtml += `<button class="btn btn-sm btn-primary" onclick="setVisitStatus('${esc(id)}', 'In Progress')">Mulai Kunjungan</button>`;
+      actHtml += `<button class="btn btn-sm btn-outline-warning" onclick="openRescheduleModal('${esc(id)}')">Jadwal Ulang</button>`;
+    } else if (canManage && st === 'in progress') {
+      actHtml += `<button class="btn btn-sm btn-success" onclick="startChecklistForVisit('${esc(id)}')">Isi Checklist</button>`;
+      actHtml += `<button class="btn btn-sm btn-outline-warning" onclick="openRescheduleModal('${esc(id)}')">Jadwal Ulang</button>`;
+    }
+    if (data.checklist) {
+      actHtml += `<button class="btn btn-sm btn-outline-primary" onclick="closeModal('modal-visit-detail'); navigateTo('checklist'); setTimeout(() => viewChecklistDetailById('${esc(data.checklist.idChecklist)}'), 300);">Hasil Checklist (${esc(data.checklist.grade)})</button>`;
+    }
+    if (isAdminUI() && st !== 'cancelled' && st !== 'completed') {
+      actHtml += `<button class="btn btn-sm btn-outline-danger" onclick="deleteVisitAction('${id}')">Batalkan</button>`;
+    }
+
+    $('mod-vs-actions').innerHTML = actHtml;
+    openModal('modal-visit-detail');
+  } catch (err) {
+    toast('Gagal memuat detail visit: ' + err.message, 'error');
+  }
+}
+
+async function setVisitStatus(id, newStatus) {
+  confirmDialog(
+    'Ubah Status Kunjungan',
+    `Apakah Anda yakin ingin mengubah status menjadi <b>${newStatus}</b>?`,
+    async () => {
+      try {
+        await call('apiUpdateVisitStatus', APP_STATE.token, id, newStatus, 'Pembaruan dari menu detail visit');
+        closeModal('modal-visit-detail');
+        toast(`Status berhasil diubah ke ${newStatus}.`, 'success');
+        await loadVisit();
+      } catch (err) {
+        toast('Gagal mengubah status: ' + err.message, 'error');
+      }
+    }
+  );
+}
+
+function openRescheduleModal(id) {
+  closeModal('modal-visit-detail');
+  $('resched-id-visit').value = id;
+  $('resched-new-date').value = today();
+  $('resched-new-date').min = today();
+  $('resched-reason').value   = '';
+  openModal('modal-visit-reschedule');
+}
+
+async function submitReschedule(event) {
+  event.preventDefault();
+  const id = $('resched-id-visit').value;
+  const newDate = $('resched-new-date').value;
+  const reason = $('resched-reason').value;
+
+  try {
+    await call('apiUpdateVisitStatus', APP_STATE.token, id, 'Rescheduled', `Dijadwalkan ulang ke ${newDate}: ${reason}`, newDate);
+    closeModal('modal-visit-reschedule');
+    toast('Kunjungan berhasil dijadwal ulang.', 'success');
+    await loadVisit();
+  } catch (err) {
+    toast('Gagal menjadwal ulang: ' + err.message, 'error');
+  }
+}
+
+function deleteVisitAction(id) {
+  confirmDialog(
+    'Batalkan Kunjungan',
+    'Apakah Anda yakin ingin membatalkan jadwal kunjungan ini?',
+    async () => {
+      try {
+        await call('apiDeleteVisit', APP_STATE.token, id);
+        closeModal('modal-visit-detail');
+        toast('Kunjungan berhasil dibatalkan.', 'info');
+        await loadVisit();
+      } catch (err) {
+        toast('Gagal membatalkan kunjungan: ' + err.message, 'error');
+      }
+    },
+    true
+  );
+}
+
+function startChecklistForVisit(visitId) {
+  closeModal('modal-visit-detail');
+  navigateTo('checklist');
+  if (typeof openChecklistFormForVisit === 'function') {
+    openChecklistFormForVisit(visitId);
+  }
+}
+</script>

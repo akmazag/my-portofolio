@@ -1,0 +1,530 @@
+<!-- Settings.html — QC Management System: Settings, Master Check & User Management -->
+<div id="view-settings" class="module-view" style="display:none;">
+
+  <!-- Navigasi Tab Pengaturan -->
+  <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+    <ul class="nav nav-pills gap-2" id="settings-subtabs">
+      <li class="nav-item">
+        <button class="nav-link active px-3 py-2 fw-semibold" id="btn-st-config" onclick="switchSettingsTab('config')">Konfigurasi Sistem</button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link px-3 py-2 fw-semibold" id="btn-st-mastercheck" onclick="switchSettingsTab('mastercheck')">Master Checklist</button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link px-3 py-2 fw-semibold" id="btn-st-users" onclick="switchSettingsTab('users')">Manajemen Pengguna</button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link px-3 py-2 fw-semibold" id="btn-st-audit" onclick="switchSettingsTab('audit')">Audit Data</button>
+      </li>
+    </ul>
+  </div>
+
+  <!-- ── 1. KONTEN TAB: KONFIGURASI APLIKASI (APP_CONFIG) ── -->
+  <div id="st-view-config" class="st-subview">
+    <div class="card p-4 border-0 shadow-xs bg-white mb-3">
+      <div class="fw-bold mb-1" style="color:#172554;">Parameter Operasional &amp; Ambang Batas</div>
+      <div class="small text-muted mb-3">Atur ambang batas jatuh tempo cleaning, klasifikasi grade mutu, dan batasan sesi.</div>
+      <div id="st-config-table-box"></div>
+    </div>
+  </div>
+
+  <!-- ── 1b. KONTEN TAB: AUDIT DATA ── -->
+  <div id="st-view-audit" class="st-subview" style="display:none;">
+    <div class="card p-4 border-0 shadow-xs bg-white mb-3">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+        <div>
+          <div class="fw-bold" style="color:#172554;">Audit Kualitas Data Spreadsheet</div>
+          <div class="small text-muted">Memeriksa konsistensi KODE, INTERVAL, USERS, OP, transaksi, dan master checklist. Tidak mengubah data.</div>
+        </div>
+        <button class="btn btn-sm btn-primary" id="btn-run-audit" onclick="runDataAudit()">Jalankan Audit</button>
+      </div>
+      <div class="row g-2 mb-3" id="st-audit-summary"></div>
+      <div id="st-audit-table-box"><div class="text-muted small">Klik "Jalankan Audit" untuk memulai.</div></div>
+    </div>
+  </div>
+
+  <!-- Modal ubah konfigurasi -->
+  <div class="modal fade" id="modal-config-form" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+      <form class="modal-content border-0 shadow-lg" style="border-radius:12px;" onsubmit="saveConfigForm(event)">
+        <div class="modal-header py-2"><h6 class="modal-title fw-bold" style="color:#172554;">Ubah Parameter</h6>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body">
+          <div class="small font-monospace fw-bold mb-1" id="cfg-key-label"></div>
+          <div class="small text-muted mb-2" id="cfg-desc-label"></div>
+          <input type="hidden" id="cfg-key">
+          <input type="text" class="form-control form-control-sm" id="cfg-value" required>
+        </div>
+        <div class="modal-footer py-2">
+          <button type="button" class="btn btn-sm btn-light border" data-bs-dismiss="modal">Batal</button>
+          <button type="submit" class="btn btn-sm btn-primary" id="cfg-btn">Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── 2. KONTEN TAB: MASTER CHECKLIST ── -->
+  <div id="st-view-mastercheck" class="st-subview" style="display:none;">
+    <div class="card p-3 border-0 shadow-xs bg-white mb-3">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <div class="fw-bold" style="color:#172554;">Katalog Standar Pemeriksaan Mutu (Master Check)</div>
+          <div class="small text-muted">Item inspeksi resmi untuk kategori Cinema, F&amp;B, dan Premiere</div>
+        </div>
+        <button class="btn btn-sm btn-primary px-3 py-2" onclick="openAddMasterCheckModal()">
+          + Tambah Item Checklist
+        </button>
+      </div>
+    </div>
+    <div class="card border-0 shadow-xs bg-white">
+      <div id="st-mastercheck-table-box"></div>
+    </div>
+  </div>
+
+  <!-- ── 3. KONTEN TAB: MANAJEMEN USER ── -->
+  <div id="st-view-users" class="st-subview" style="display:none;">
+    <div class="card p-3 border-0 shadow-xs bg-white mb-3">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <div class="fw-bold" style="color:#172554;">Pengelolaan Akun &amp; Hak Akses (Role-Based Access)</div>
+          <div class="small text-muted">QC Office, RM, AM, Outlet, QC Area, Specialist</div>
+        </div>
+        <button class="btn btn-sm btn-primary px-3 py-2" onclick="openAddUserModal()">
+          + Tambah Pengguna Baru
+        </button>
+      </div>
+    </div>
+    <div class="card border-0 shadow-xs bg-white">
+      <div id="st-users-table-box"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── MODAL ADD/EDIT MASTER CHECK ITEM ── -->
+<div class="modal fade" id="modal-mastercheck-form" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-md">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header" style="background:#172554; color:#fff;">
+        <h5 class="modal-title mb-0" id="mod-mc-title">Item Checklist Baru</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form onsubmit="saveMasterCheckItem(event)">
+        <div class="modal-body p-4">
+          <input type="hidden" id="inp-mc-id">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Kategori Pemeriksaan <span class="text-danger">*</span></label>
+            <select class="form-select form-select-sm" id="inp-mc-cat" required>
+              <option value="Cinema">Cinema</option>
+              <option value="F&amp;B">F&amp;B</option>
+              <option value="Premiere">Premiere</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Aspek / Kelompok Pemeriksaan</label>
+            <input type="text" class="form-control form-control-sm" id="inp-mc-aspek" list="dl-mc-aspek" placeholder="Contoh: 1. Area Lobi &amp; Koridor">
+            <datalist id="dl-mc-aspek"></datalist>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Nama Item Checklist <span class="text-danger">*</span></label>
+            <input type="text" class="form-control form-control-sm" id="inp-mc-name" required placeholder="Contoh: Kebersihan karpet dan pendingin studio">
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Deskripsi / Standar Acuan</label>
+            <textarea class="form-control form-control-sm" id="inp-mc-desc" rows="2" placeholder="Petunjuk detail pemeriksaan…"></textarea>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Skor Maksimum</label>
+              <input type="number" class="form-control form-control-sm" id="inp-mc-max" value="5" min="1" max="10">
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Urutan Tampilan</label>
+              <input type="number" class="form-control form-control-sm" id="inp-mc-order" value="1" min="1">
+            </div>
+          </div>
+          <div class="form-check form-switch mt-2">
+            <input class="form-check-input" type="checkbox" id="inp-mc-active" checked>
+            <label class="form-check-label small fw-semibold" for="inp-mc-active">Status Aktif</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Batal</button>
+          <button type="submit" class="btn btn-sm btn-primary px-3">Simpan Item</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL ADD/EDIT USER ── -->
+<div class="modal fade" id="modal-user-form" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-md">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header" style="background:#172554; color:#fff;">
+        <h5 class="modal-title mb-0" id="mod-usr-title">Tambah Pengguna Baru</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form onsubmit="saveUserAccount(event)">
+        <div class="modal-body p-4">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Username <span class="text-danger">*</span></label>
+            <input type="text" class="form-control form-control-sm" id="inp-usr-uname" required placeholder="username_login">
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Nama Lengkap <span class="text-danger">*</span></label>
+            <input type="text" class="form-control form-control-sm" id="inp-usr-nama" required placeholder="Nama Lengkap">
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold" id="lbl-usr-pass">Password <span class="text-danger">*</span></label>
+            <input type="password" class="form-control form-control-sm" id="inp-usr-pass" placeholder="Minimal 6 karakter">
+            <div class="form-text" id="hint-usr-pass" style="font-size:0.75rem;">Biarkan kosong jika tidak ingin mengubah password saat edit.</div>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Role Jabatan <span class="text-danger">*</span></label>
+              <select class="form-select form-select-sm" id="inp-usr-role" required onchange="onUserRoleChange()">
+                <option value="QC">QC (Office / Admin)</option>
+                <option value="QC Area">QC Area</option>
+                <option value="Specialist">Specialist (Kabag)</option>
+                <option value="AM">Area Manager (AM)</option>
+                <option value="RM">Regional Manager (RM)</option>
+                <option value="Outlet">Outlet</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Status Akun</label>
+              <select class="form-select form-select-sm" id="inp-usr-status">
+                <option value="Active">Active (Aktif)</option>
+                <option value="Inactive">Inactive (Nonaktif)</option>
+              </select>
+            </div>
+          </div>
+          <div class="mb-3" id="box-usr-outlet" style="display:none;">
+            <label class="form-label small fw-semibold">Kode / Nama Outlet Khusus</label>
+            <input type="text" class="form-control form-control-sm" id="inp-usr-outlet" placeholder="Wajib untuk role Outlet">
+          </div>
+          <div class="mb-2">
+            <label class="form-label small fw-semibold">Akses Data Tambahan (Opsional)</label>
+            <input type="text" class="form-control form-control-sm" id="inp-usr-akses" placeholder="ALL atau nama outlet dipisah koma">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Batal</button>
+          <button type="submit" class="btn btn-sm btn-primary px-3">Simpan Akun</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+/**
+ * Settings Controller Logic
+ */
+let CURRENT_SETTINGS_TAB = 'config';
+let RAW_SETTINGS = { configs: [], masterCheck: [], users: [] };
+
+async function loadSettings() {
+  switchSettingsTab(CURRENT_SETTINGS_TAB);
+}
+
+function switchSettingsTab(tab) {
+  CURRENT_SETTINGS_TAB = tab;
+  const btnMap = {
+    'config': 'btn-st-config',
+    'mastercheck': 'btn-st-mastercheck',
+    'users': 'btn-st-users',
+    'audit': 'btn-st-audit'
+  };
+  Object.keys(btnMap).forEach(k => {
+    const el = $(btnMap[k]);
+    if (el) el.classList.toggle('active', k === tab);
+  });
+
+  $$('.st-subview').forEach(v => v.style.display = 'none');
+  const target = $(`st-view-${tab}`);
+  if (target) target.style.display = 'block';
+
+  if (tab === 'config') loadAppConfigs();
+  else if (tab === 'mastercheck') loadMasterChecklist();
+  else if (tab === 'users') loadUserManagement();
+}
+
+async function loadAppConfigs() {
+  showSkeleton('st-config-table-box', 4);
+  try {
+    const list = await call('apiGetAppConfig', APP_STATE.token);
+    RAW_SETTINGS.configs = list || [];
+
+    const cols = [
+      { key: 'key', label: 'Parameter Sistem', render: r => `<span class="fw-bold text-dark font-monospace">${esc(r.key)}</span>` },
+      { key: 'deskripsi', label: 'Deskripsi', render: r => `<span class="small text-secondary">${esc(r.deskripsi || '-')}</span>` },
+      { key: 'value', label: 'Nilai Aktif', render: r => `<span class="badge bg-primary-subtle text-primary border px-2 py-1">${esc(r.value)}</span>` },
+      { 
+        key: 'aksi', 
+        label: 'Aksi', 
+        render: r => r.key === 'app_version' ? '<span class="small text-muted">sistem</span>' : `<button class="btn btn-sm btn-outline-secondary py-1 px-2" style="font-size:0.75rem;" onclick="editConfigPrompt('${esc(r.key)}')">Ubah Nilai</button>` 
+      }
+    ];
+
+    buildTable('st-config-table-box', cols, RAW_SETTINGS.configs, { emptyText: 'Konfigurasi sistem belum dimuat.' });
+  } catch (err) {
+    toast('Gagal memuat konfigurasi: ' + err.message, 'error');
+  }
+}
+
+function editConfigPrompt(key) {
+  const c = (RAW_SETTINGS.configs || []).find(x => x.key === key) || { key: key, value: '' };
+  $('cfg-key').value = key;
+  $('cfg-key-label').textContent = key;
+  $('cfg-desc-label').textContent = c.deskripsi || '';
+  $('cfg-value').value = c.value;
+  openModal('modal-config-form');
+}
+
+async function saveConfigForm(event) {
+  event.preventDefault();
+  const key = $('cfg-key').value, val = $('cfg-value').value.trim();
+  await withButton($('cfg-btn'), 'Menyimpan…', async () => {
+    try {
+      await call('apiUpdateAppConfig', APP_STATE.token, { key: key, value: val });
+      closeModal('modal-config-form');
+      toast(`Parameter ${key} berhasil diperbarui.`, 'success');
+      try { const b = await callQuiet('apiBootstrap', APP_STATE.token); APP_STATE.appConfig = b.appConfig || APP_STATE.appConfig; } catch (e) {}
+      await loadAppConfigs();
+    } catch (err) {
+      toast('Gagal memperbarui konfigurasi: ' + err.message, 'error');
+    }
+  });
+}
+
+async function runDataAudit() {
+  await withButton($('btn-run-audit'), 'Memeriksa…', async () => {
+    try {
+      const res = await call('apiAuditDatabase', APP_STATE.token);
+      const F = res.findings || [];
+      const cnt = { KRITIS: 0, TINGGI: 0, SEDANG: 0, RENDAH: 0 };
+      F.forEach(f => { cnt[f.tingkat] = (cnt[f.tingkat] || 0) + 1; });
+      const col = { KRITIS: '#DC2626', TINGGI: '#F97316', SEDANG: '#F59E0B', RENDAH: '#64748B' };
+      $('st-audit-summary').innerHTML = Object.keys(cnt).map(k => `
+        <div class="col-6 col-md-3"><div class="p-3 rounded-3 border bg-light">
+          <div class="small fw-semibold" style="color:${col[k]};">${k}</div><div class="fw-bold fs-4">${cnt[k]}</div></div></div>`).join('');
+      buildTable('st-audit-table-box', [
+        { key: 'tingkat', label: 'Tingkat', render: r => `<span class="badge" style="background:${col[r.tingkat]};">${esc(r.tingkat)}</span>` },
+        { key: 'sheet', label: 'Sheet', render: r => `<span class="font-monospace small">${esc(r.sheet)}</span>${r.baris ? ` <span class="text-muted small">#${esc(r.baris)}</span>` : ''}` },
+        { key: 'masalah', label: 'Temuan', render: r => esc(r.masalah) },
+        { key: 'saran', label: 'Saran Perbaikan', render: r => `<span class="small text-secondary">${esc(r.saran)}</span>` }
+      ], F, { emptyText: '✅ Tidak ada temuan — data konsisten.' });
+    } catch (err) {
+      toast('Gagal menjalankan audit: ' + err.message, 'error');
+    }
+  });
+}
+
+async function loadMasterChecklist() {
+  showSkeleton('st-mastercheck-table-box', 4);
+  try {
+    const res = await call('apiGetMasterCheck', APP_STATE.token);
+    RAW_SETTINGS.masterCheck = res.items || [];
+    if (res.sumberLegacy) toast('Master checklist masih dibaca dari sheet lama "MASTER CHECK". Menyimpan perubahan akan menyalinnya ke MASTER_CHECK.', 'info', 7000);
+    const aspekList = [...new Set(RAW_SETTINGS.masterCheck.map(i => i.aspek).filter(Boolean))];
+    if ($('dl-mc-aspek')) $('dl-mc-aspek').innerHTML = aspekList.map(a => `<option value="${esc(a)}">`).join('');
+
+    const cols = [
+      { key: 'urutanTampilan', label: 'Urutan', render: r => `<span class="badge bg-light text-dark border">#${r.urutanTampilan}</span>` },
+      { key: 'kategori', label: 'Kategori', render: r => `<span class="badge bg-secondary-subtle text-secondary">${esc(r.kategori)}</span>` },
+      { key: 'namaChecklist', label: 'Item Checklist', render: r => `<div class="fw-semibold">${esc(r.namaChecklist)}</div><div class="small text-muted">${esc(r.aspek || '')}${r.deskripsi ? ' • ' + esc(r.deskripsi) : ''}</div>` },
+      { key: 'scoreMax', label: 'Skor Max', render: r => `${r.scoreMax}` },
+      { key: 'statusAktif', label: 'Status', render: r => r.statusAktif ? '<span class="badge bg-success">Aktif</span>' : '<span class="badge bg-danger">Nonaktif</span>' },
+      { 
+        key: 'aksi', 
+        label: 'Aksi', 
+        render: r => `
+          <button class="btn btn-sm btn-light border py-1 px-2" style="font-size:0.75rem;" onclick="openEditMasterCheckModal('${esc(r.idCheck)}')">Edit</button>
+          <button class="btn btn-sm ${r.statusAktif ? 'btn-outline-danger' : 'btn-outline-success'} py-1 px-2" style="font-size:0.75rem;" onclick="toggleMasterCheckStatus('${esc(r.idCheck)}', ${!r.statusAktif})">
+            ${r.statusAktif ? 'Nonaktifkan' : 'Aktifkan'}
+          </button>`
+      }
+    ];
+
+    buildTable('st-mastercheck-table-box', cols, RAW_SETTINGS.masterCheck, { emptyText: 'Belum ada item master check terdaftar.' });
+  } catch (err) {
+    toast('Gagal memuat master checklist: ' + err.message, 'error');
+  }
+}
+
+function openAddMasterCheckModal() {
+  $('mod-mc-title').textContent = 'Tambah Item Checklist';
+  $('inp-mc-id').value    = '';
+  $('inp-mc-cat').value   = 'Cinema';
+  $('inp-mc-name').value  = '';
+  $('inp-mc-aspek').value = '';
+  $('inp-mc-desc').value  = '';
+  $('inp-mc-max').value   = '5';
+  $('inp-mc-order').value = (RAW_SETTINGS.masterCheck.length + 1);
+  $('inp-mc-active').checked = true;
+  openModal('modal-mastercheck-form');
+}
+
+function openEditMasterCheckModal(id) {
+  const item = (RAW_SETTINGS.masterCheck || []).find(it => it.idCheck === id);
+  if (!item) return;
+
+  $('mod-mc-title').textContent = 'Edit Item Checklist';
+  $('inp-mc-id').value    = item.idCheck;
+  $('inp-mc-cat').value   = item.kategori;
+  $('inp-mc-name').value  = item.namaChecklist;
+  $('inp-mc-aspek').value = item.aspek || '';
+  $('inp-mc-desc').value  = item.deskripsi;
+  $('inp-mc-max').value   = item.scoreMax;
+  $('inp-mc-order').value = item.urutanTampilan;
+  $('inp-mc-active').checked = item.statusAktif;
+  openModal('modal-mastercheck-form');
+}
+
+async function saveMasterCheckItem(event) {
+  event.preventDefault();
+  const payload = {
+    idCheck:        $('inp-mc-id').value,
+    kategori:       $('inp-mc-cat').value,
+    namaChecklist:  $('inp-mc-name').value,
+    aspek:          $('inp-mc-aspek').value,
+    deskripsi:      $('inp-mc-desc').value,
+    scoreMax:       Number($('inp-mc-max').value) || 5,
+    urutanTampilan: Number($('inp-mc-order').value) || 1,
+    statusAktif:    $('inp-mc-active').checked
+  };
+
+  try {
+    await call('apiSaveMasterCheck', APP_STATE.token, payload);
+    closeModal('modal-mastercheck-form');
+    toast('Item checklist berhasil disimpan.', 'success');
+    await loadMasterChecklist();
+  } catch (err) {
+    toast('Gagal menyimpan item checklist: ' + err.message, 'error');
+  }
+}
+
+async function toggleMasterCheckStatus(id, newStatus) {
+  const item = (RAW_SETTINGS.masterCheck || []).find(it => it.idCheck === id);
+  if (!item) return;
+
+  try {
+    await call('apiSaveMasterCheck', APP_STATE.token, {
+      ...item,
+      statusAktif: newStatus
+    });
+    toast('Status item berhasil diperbarui.', 'success');
+    await loadMasterChecklist();
+  } catch (err) {
+    toast('Gagal mengubah status: ' + err.message, 'error');
+  }
+}
+
+async function loadUserManagement() {
+  showSkeleton('st-users-table-box', 4);
+  try {
+    const res = await call('apiGetUsers', APP_STATE.token);
+    RAW_SETTINGS.users = res.users || [];
+
+    const cols = [
+      { key: 'nama', label: 'Nama Pengguna', render: r => `<div class="d-flex align-items-center gap-2">${avatarHtml(r.nama, 'sm')}<div><div class="fw-bold">${esc(r.nama)}</div><div class="small text-muted">@${esc(r.username)}</div></div></div>` },
+      { key: 'role', label: 'Role Jabatan', render: r => `<span class="badge bg-primary-subtle text-primary border">${esc(r.role)}</span>` },
+      { key: 'kodeOutlet', label: 'Outlet Khusus', render: r => esc(r.kodeOutlet || '-') },
+      { key: 'status', label: 'Status Akun', render: r => statusBadgeHtml(r.status) },
+      { 
+        key: 'aksi', 
+        label: 'Aksi', 
+        render: r => `
+          <button class="btn btn-sm btn-light border py-1 px-2" style="font-size:0.75rem;" onclick="openEditUserModal('${esc(r.username)}')">Edit</button>
+          <button class="btn btn-sm ${norm_(r.status) === 'active' ? 'btn-outline-danger' : 'btn-outline-success'} py-1 px-2" style="font-size:0.75rem;" onclick="toggleUserStatusAction('${esc(r.username)}')">
+            ${norm_(r.status) === 'active' ? 'Nonaktifkan' : 'Aktifkan'}
+          </button>` 
+      }
+    ];
+
+    buildTable('st-users-table-box', cols, RAW_SETTINGS.users, { emptyText: 'Tidak ada data user terdaftar.' });
+  } catch (err) {
+    toast('Gagal memuat daftar user: ' + err.message, 'error');
+  }
+}
+
+function openAddUserModal() {
+  $('mod-usr-title').textContent = 'Tambah Pengguna Baru';
+  $('inp-usr-uname').value  = '';
+  $('inp-usr-uname').readOnly = false;
+  $('inp-usr-nama').value   = '';
+  $('inp-usr-pass').value   = '';
+  $('inp-usr-pass').required = true;
+  $('hint-usr-pass').style.display = 'none';
+  $('inp-usr-role').value   = 'QC Area';
+  $('inp-usr-status').value = 'Active';
+  $('inp-usr-outlet').value = '';
+  $('inp-usr-akses').value  = '';
+  onUserRoleChange();
+  openModal('modal-user-form');
+}
+
+function openEditUserModal(uname) {
+  const u = (RAW_SETTINGS.users || []).find(it => it.username === uname);
+  if (!u) return;
+
+  $('mod-usr-title').textContent = `Edit Pengguna: @${uname}`;
+  $('inp-usr-uname').value  = u.username;
+  $('inp-usr-uname').readOnly = true;
+  $('inp-usr-nama').value   = u.nama;
+  $('inp-usr-pass').value   = '';
+  $('inp-usr-pass').required = false;
+  $('hint-usr-pass').style.display = 'block';
+  $('inp-usr-role').value   = u.role;
+  $('inp-usr-status').value = u.status;
+  $('inp-usr-outlet').value = u.kodeOutlet || '';
+  $('inp-usr-akses').value  = u.aksesData || '';
+  onUserRoleChange();
+  openModal('modal-user-form');
+}
+
+function onUserRoleChange() {
+  const role = $('inp-usr-role').value;
+  $('box-usr-outlet').style.display = role === 'Outlet' ? 'block' : 'none';
+}
+
+async function saveUserAccount(event) {
+  event.preventDefault();
+  const payload = {
+    username:   $('inp-usr-uname').value,
+    nama:       $('inp-usr-nama').value,
+    password:   $('inp-usr-pass').value,
+    role:       $('inp-usr-role').value,
+    status:     $('inp-usr-status').value,
+    kodeOutlet: $('inp-usr-outlet').value,
+    aksesData:  $('inp-usr-akses').value
+  };
+
+  try {
+    await call('apiSaveUser', APP_STATE.token, payload);
+    closeModal('modal-user-form');
+    toast(`Akun user @${payload.username} berhasil disimpan.`, 'success');
+    await loadUserManagement();
+  } catch (err) {
+    toast('Gagal menyimpan user: ' + err.message, 'error');
+  }
+}
+
+async function toggleUserStatusAction(uname) {
+  confirmDialog(
+    'Ubah Status User',
+    `Apakah Anda yakin ingin mengubah status aktif user <b>@${uname}</b>?`,
+    async () => {
+      try {
+        await call('apiToggleUserStatus', APP_STATE.token, uname);
+        toast(`Status user @${uname} berhasil diubah.`, 'success');
+        await loadUserManagement();
+      } catch (err) {
+        toast('Gagal mengubah status: ' + err.message, 'error');
+      }
+    }
+  );
+}
+</script>

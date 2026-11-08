@@ -1,0 +1,271 @@
+<script>
+/**
+ * Auth.html
+ * Autentikasi Pengguna, Manajemen Sesi, dan Inisialisasi Shell Aplikasi
+ * QC Management System v1.0.0
+ */
+
+async function doLogin(event) {
+  if (event) event.preventDefault();
+  const userEl = $('lg-user');
+  const passEl = $('lg-pass');
+  const errEl  = $('lg-error');
+  const btnEl  = $('lg-btn');
+
+  if (!userEl || !passEl) return;
+  const username = userEl.value.trim();
+  const password = passEl.value;
+
+  if (!username || !password) {
+    if (errEl) {
+      errEl.textContent = 'Harap masukkan username dan password.';
+      errEl.classList.remove('d-none');
+    }
+    return;
+  }
+
+  if (errEl) errEl.classList.add('d-none');
+  btnEl.disabled = true;
+  btnEl.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Memverifikasi…';
+
+  try {
+    const res = await new Promise((resolve, reject) => {
+      google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .apiLogin(username, password);
+    });
+
+    if (!res || !res.ok) {
+      throw new Error(res && res.msg ? res.msg : 'Username atau password salah.');
+    }
+
+    APP_STATE.token = res.data.token;
+    safeSet('qc_token', APP_STATE.token);
+    passEl.value = '';
+
+    await startApp();
+    toast('Login berhasil. Selamat datang, ' + (APP_STATE.user.nama || APP_STATE.user.username) + '!', 'success', 3000);
+  } catch (err) {
+    if (errEl) {
+      errEl.textContent = err.message || 'Gagal masuk. Periksa kembali akun Anda.';
+      errEl.classList.remove('d-none');
+    }
+    btnEl.disabled = false;
+    btnEl.innerHTML = 'Masuk ke Sistem';
+  }
+}
+
+async function startApp() {
+  setBusy(true);
+  try {
+    const bootstrapData = await call('apiBootstrap', APP_STATE.token);
+    APP_STATE.user      = bootstrapData.user;
+    APP_STATE.perms     = bootstrapData.perms || {};
+    APP_STATE.outlets   = bootstrapData.outlets || [];
+    APP_STATE.areas     = bootstrapData.areas || [];
+    APP_STATE.kelasList = bootstrapData.kelasList || bootstrapData.kelas || [];
+    APP_STATE.regions   = bootstrapData.regions || [];
+    APP_STATE.studios   = bootstrapData.studios || [];
+    APP_STATE.appConfig = bootstrapData.appConfig || {};
+    const banner = $('scope-empty-banner');
+    if (banner) banner.classList.toggle('d-none', !bootstrapData.scopeEmpty);
+
+    // Tampilkan informasi profil user di Sidebar dan Topbar
+    const nameStr = APP_STATE.user.nama || APP_STATE.user.username;
+    const roleStr = APP_STATE.user.roleLabel || APP_STATE.user.role || 'QC';
+    
+    if ($('user-profile-name')) $('user-profile-name').textContent = nameStr;
+    if ($('user-profile-role')) $('user-profile-role').textContent = roleStr;
+    if ($('topbar-user-name'))  $('topbar-user-name').textContent  = nameStr;
+    if ($('user-avatar-initial')) {
+      $('user-avatar-initial').innerHTML = avatarHtml(nameStr, 'md');
+    }
+
+    // Bangun navigasi menu sesuai izin role
+    buildSidebarNav();
+
+    // Sembunyikan layar login, tampilkan aplikasi
+    $('login-screen').style.display = 'none';
+    $('app-shell').style.display    = 'flex';
+
+    applyPermUI();
+    startKeepAlive();
+
+    // Buka modul default: Dashboard
+    navigateTo('dashboard');
+  } catch (err) {
+    logout(true);
+    throw err;
+  } finally {
+    setBusy(false);
+  }
+}
+
+function buildSidebarNav() {
+  const navContainer = $('sidebar-nav-list');
+  if (!navContainer) return;
+
+  const role = (APP_STATE.user.role || '').toLowerCase();
+  const perms = APP_STATE.perms;
+  const isAdmin = !!perms.isAdmin || role === 'qc';
+
+  const menus = [
+    { id: 'dashboard',    label: 'Dashboard',           icon: '📊', show: true },
+    { id: 'organization', label: 'Organisasi QC',       icon: '🏢', show: true },
+    { id: 'master',       label: 'Master Data',         icon: '🗄️',  show: true },
+    { id: 'users',        label: 'Master User',         icon: '👥', show: isAdmin },
+    { id: 'cleaning',     label: 'Cleaning Monitoring', icon: '🧼', show: true },
+    { id: 'visit',        label: 'Visit Management',    icon: '🗓️',  show: true },
+    { id: 'checklist',    label: 'QC Checklist',        icon: '📋', show: true },
+    { id: 'performance',  label: 'Performa & Grading',  icon: '📈', show: perms.canViewGrading !== false },
+    { id: 'settings',     label: 'Pengaturan',          icon: '⚙️',  show: isAdmin }
+  ];
+
+  let html = '';
+  menus.filter(m => m.show).forEach(m => {
+    html += `
+      <li class="nav-item mb-1">
+        <a href="javascript:void(0)" class="nav-link d-flex align-items-center gap-3 px-3 py-2 text-white-50 rounded-3 text-decoration-none" 
+           id="nav-${m.id}" onclick="navigateTo('${m.id}')">
+          <span class="nav-icon" style="font-size:1.1rem;">${m.icon}</span>
+          <span class="nav-label fw-500" style="font-size:0.9rem;">${m.label}</span>
+        </a>
+      </li>`;
+  });
+
+  navContainer.innerHTML = html;
+}
+
+/** Sembunyikan tombol aksi yang tidak diizinkan (backend tetap memvalidasi ulang). */
+function applyPermUI() {
+  const rules = {
+    'btn-add-cleaning': can('canInputCleaning'),
+    'btn-create-visit': can('canPlanVisit'),
+    'btn-new-checklist': can('canSubmitChecklist')
+  };
+  Object.keys(rules).forEach(id => { const el = $(id); if (el) el.classList.toggle('d-none', !rules[id]); });
+}
+
+// ─── KEEP-ALIVE & AUTO LOGOUT ────────────────────────────────────────────────
+let _KEEPALIVE = null;
+function startKeepAlive() {
+  stopKeepAlive();
+  _KEEPALIVE = setInterval(() => {
+    if (!APP_STATE.token) return stopKeepAlive();
+    google.script.run.withSuccessHandler(res => {
+      if (res && res.ok && res.data && res.data.valid === false) logout(true);
+    }).apiValidateToken(APP_STATE.token);
+  }, 4 * 60 * 1000);
+}
+function stopKeepAlive() { if (_KEEPALIVE) clearInterval(_KEEPALIVE); _KEEPALIVE = null; }
+
+function navigateTo(pageId) {
+  APP_STATE.currentPage = pageId;
+  if (window.innerWidth < 768 && typeof toggleMobileSidebar === 'function') toggleMobileSidebar(false);
+
+  // Update visual active state di sidebar
+  $$('#sidebar-nav-list .nav-link').forEach(link => {
+    link.classList.remove('active', 'text-white', 'bg-primary-subtle');
+    link.classList.add('text-white-50');
+  });
+  const activeLink = $(`nav-${pageId}`);
+  if (activeLink) {
+    activeLink.classList.add('active', 'text-white');
+    activeLink.classList.remove('text-white-50');
+  }
+
+  // Update Breadcrumb di Topbar
+  const titles = {
+    dashboard:    'Dashboard Operasional',
+    organization: 'Mapping Organisasi & Tim QC',
+    master:       'Master Outlet & Tim Wilayah',
+    users:        'Master User & Hak Akses',
+    cleaning:     'Monitoring Interval Pencucian (Karpet & Kursi)',
+    visit:        'QC Area Visit Management & Timeline',
+    checklist:    'Pemeriksaan Digital & Checklist Kunjungan',
+    performance:  'Evaluasi Kinerja & Performance Grading',
+    settings:     'Pengaturan Sistem & Master Check'
+  };
+  if ($('page-title-breadcrumb')) {
+    $('page-title-breadcrumb').textContent = titles[pageId] || 'QC Management System';
+  }
+
+  // Tampilkan container view yang sesuai
+  $$('.module-view').forEach(v => v.style.display = 'none');
+  const targetView = $(`view-${pageId}`);
+  if (targetView) {
+    targetView.style.display = 'block';
+  }
+
+  // Panggil fungsi loader modul terkait
+  const loaders = {
+    dashboard:    () => typeof loadDashboard === 'function' && loadDashboard(),
+    organization: () => typeof loadOrganization === 'function' && loadOrganization(),
+    master:       () => typeof loadMaster === 'function' && loadMaster(),
+    users:        () => typeof loadMasterUser === 'function' && loadMasterUser(),
+    cleaning:     () => typeof loadCleaning === 'function' && loadCleaning(),
+    visit:        () => typeof loadVisit === 'function' && loadVisit(),
+    checklist:    () => typeof loadChecklistList === 'function' && loadChecklistList(),
+    performance:  () => typeof loadPerformance === 'function' && loadPerformance(),
+    settings:     () => typeof loadSettings === 'function' && loadSettings()
+  };
+
+  if (loaders[pageId]) {
+    safeAction(loaders[pageId])();
+  }
+}
+
+function logout(silent = false) {
+  const doLogoutAction = () => {
+    stopKeepAlive();
+    if (APP_STATE.token) {
+      try { google.script.run.apiLogout(APP_STATE.token); } catch (e) {}
+    }
+    if (typeof CHARTS === 'object') Object.keys(CHARTS).forEach(k => destroyChart(k));
+    APP_STATE.token = null;
+    APP_STATE.user  = null;
+    safeSet('qc_token', null);
+
+    $('app-shell').style.display    = 'none';
+    $('login-screen').style.display = 'flex';
+    
+    if ($('lg-user')) $('lg-user').value = '';
+    if ($('lg-pass')) $('lg-pass').value = '';
+    if ($('lg-btn')) {
+      $('lg-btn').disabled = false;
+      $('lg-btn').textContent = 'Masuk ke Sistem';
+    }
+    if (silent) {
+      toast('Sesi telah berakhir. Silakan masuk kembali.', 'warning');
+    }
+  };
+
+  if (silent) {
+    doLogoutAction();
+  } else {
+    confirmDialog(
+      'Konfirmasi Keluar',
+      'Apakah Anda yakin ingin keluar dari akun QC Management System?',
+      doLogoutAction,
+      true
+    );
+  }
+}
+
+// ─── SESSION RESTORATION ON LOAD ─────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', async () => {
+  const savedToken = safeGet('qc_token');
+  if (savedToken) {
+    APP_STATE.token = savedToken;
+    try {
+      await startApp();
+    } catch (e) {
+      logout(true);
+    }
+  } else {
+    $('login-screen').style.display = 'flex';
+    $('app-shell').style.display    = 'none';
+  }
+});
+</script>

@@ -1,0 +1,666 @@
+<!-- Master.html — QC Management System: Master Data (Outlet & Tim QC Area) -->
+<div id="view-master" class="module-view" style="display:none;">
+
+  <!-- Navigasi Sub-Tab Master Data -->
+  <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+    <ul class="nav nav-pills gap-2" id="master-subtabs">
+      <li class="nav-item">
+        <button class="nav-link active px-3 py-2 fw-semibold" id="tab-btn-outlet" onclick="switchMasterTab('outlet')">Master Outlet</button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link px-3 py-2 fw-semibold" id="tab-btn-op" onclick="switchMasterTab('op')">Tim QC Area</button>
+      </li>
+    </ul>
+    <div class="d-flex align-items-center gap-2">
+      <span class="badge bg-light text-secondary border px-3 py-2" id="master-total-count">0 Data</span>
+      <button class="btn btn-sm btn-primary px-3 py-2 d-none" id="btn-master-add" onclick="openMasterAddForm()">+ Tambah</button>
+    </div>
+  </div>
+
+  <!-- ── 1. KONTEN TAB: MASTER OUTLET ── -->
+  <div id="master-outlet-container">
+    <!-- Filter Bar -->
+    <div class="card p-3 border-0 shadow-xs mb-3 bg-white">
+      <div class="row g-2 align-items-end">
+        <div class="col-md-3">
+          <label class="form-label small fw-semibold text-secondary mb-1">Pencarian Outlet</label>
+          <input type="text" class="form-control form-control-sm" id="ms-outlet-search" placeholder="Cari nama / kode / kota…" oninput="filterMasterOutlet()">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small fw-semibold text-secondary mb-1">Region / RM</label>
+          <select class="form-select form-select-sm" id="ms-filter-region" onchange="filterMasterOutlet()">
+            <option value="">Semua Region</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small fw-semibold text-secondary mb-1">Area</label>
+          <select class="form-select form-select-sm" id="ms-filter-area" onchange="filterMasterOutlet()">
+            <option value="">Semua Area</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small fw-semibold text-secondary mb-1">Class</label>
+          <select class="form-select form-select-sm" id="ms-filter-class" onchange="filterMasterOutlet()">
+            <option value="">Semua Class</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small fw-semibold text-secondary mb-1">Kabag QC Area</label>
+          <select class="form-select form-select-sm" id="ms-filter-kabag" onchange="filterMasterOutlet()">
+            <option value="">Semua Kabag</option>
+          </select>
+        </div>
+        <div class="col-md-1 d-flex">
+          <button class="btn btn-sm btn-outline-secondary w-100" onclick="resetMasterFilters()">Reset</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabel Outlet -->
+    <div class="card border-0 shadow-xs bg-white">
+      <div id="master-outlet-table-box"></div>
+    </div>
+  </div>
+
+  <!-- ── 2. KONTEN TAB: TIM QC AREA ── -->
+  <div id="master-op-container" style="display:none;">
+    <!-- Filter Bar QC Area -->
+    <div class="card p-3 border-0 shadow-xs mb-3 bg-white">
+      <div class="row g-2 align-items-end">
+        <div class="col-md-4">
+          <label class="form-label small fw-semibold text-secondary mb-1">Cari Personel</label>
+          <input type="text" class="form-control form-control-sm" id="ms-op-search" placeholder="Cari nama personel / outlet…" oninput="filterMasterOP()">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small fw-semibold text-secondary mb-1">Area</label>
+          <select class="form-select form-select-sm" id="ms-op-filter-area" onchange="filterMasterOP()">
+            <option value="">Semua Area</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small fw-semibold text-secondary mb-1">Region</label>
+          <select class="form-select form-select-sm" id="ms-op-filter-regio" onchange="filterMasterOP()">
+            <option value="">Semua Region</option>
+          </select>
+        </div>
+        <div class="col-md-2 d-flex">
+          <button class="btn btn-sm btn-outline-secondary w-100" onclick="resetMasterFilters()">Reset</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabel OP -->
+    <div class="card border-0 shadow-xs bg-white">
+      <div id="master-op-table-box"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── MODAL DETAIL OUTLET ── -->
+<div class="modal fade" id="modal-outlet-detail" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-md">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header" style="background:#172554; color:#fff;">
+        <div>
+          <h5 class="modal-title mb-0" id="mod-outlet-nama">Detail Outlet</h5>
+          <span class="small opacity-75" id="mod-outlet-code"></span>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4" id="mod-outlet-body">
+        <!-- Populated -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-sm btn-outline-primary" onclick="openOutletCleaningHistory()">Histori Cleaning Outlet →</button>
+        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Tutup</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ── MODAL FORM OUTLET (TAMBAH / EDIT) ── -->
+<div class="modal fade" id="modal-outlet-form" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header" style="background:#172554; color:#fff;">
+        <h5 class="modal-title mb-0" id="mof-title">Tambah Outlet</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form onsubmit="saveOutletForm(event)">
+        <div class="modal-body p-4">
+          <input type="hidden" id="mof-orig-kode">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label small fw-semibold">Kode Outlet <span class="text-danger">*</span></label>
+              <input type="text" class="form-control form-control-sm" id="mof-kode" required>
+            </div>
+            <div class="col-md-8">
+              <label class="form-label small fw-semibold">Nama Outlet <span class="text-danger">*</span></label>
+              <input type="text" class="form-control form-control-sm" id="mof-nama" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small fw-semibold">LOB</label>
+              <input type="text" class="form-control form-control-sm" id="mof-lob" list="dl-mof-lob" placeholder="Cinema / FnB">
+              <datalist id="dl-mof-lob"></datalist>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small fw-semibold">Class</label>
+              <input type="text" class="form-control form-control-sm" id="mof-kelas" list="dl-mof-kelas">
+              <datalist id="dl-mof-kelas"></datalist>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small fw-semibold">Status Outlet</label>
+              <select class="form-select form-select-sm" id="mof-status">
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small fw-semibold">Area</label>
+              <input type="text" class="form-control form-control-sm" id="mof-area" list="dl-mof-area">
+              <datalist id="dl-mof-area"></datalist>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small fw-semibold">Kota</label>
+              <input type="text" class="form-control form-control-sm" id="mof-kota" list="dl-mof-kota">
+              <datalist id="dl-mof-kota"></datalist>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small fw-semibold">Area Manager (AM)</label>
+              <input type="text" class="form-control form-control-sm" id="mof-am" list="dl-mof-am">
+              <datalist id="dl-mof-am"></datalist>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Regional Manager (RM)</label>
+              <input type="text" class="form-control form-control-sm" id="mof-rm" list="dl-mof-rm">
+              <datalist id="dl-mof-rm"></datalist>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small fw-semibold">Kabag QC Area</label>
+              <input type="text" class="form-control form-control-sm" id="mof-kabag" list="dl-mof-kabag">
+              <datalist id="dl-mof-kabag"></datalist>
+            </div>
+          </div>
+          <div class="form-text mt-2 d-none" id="mof-lock-hint" style="font-size:0.75rem;">
+            Kode &amp; Nama outlet dikunci karena dipakai sebagai referensi transaksi (cleaning, visit, checklist).
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Batal</button>
+          <button type="submit" class="btn btn-sm btn-primary px-3" id="mof-btn">Simpan Outlet</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODAL FORM TIM QC AREA / OP (TAMBAH / EDIT) ── -->
+<div class="modal fade" id="modal-op-form" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-md">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header" style="background:#172554; color:#fff;">
+        <h5 class="modal-title mb-0" id="mop-title">Tambah Penugasan QC Area</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form onsubmit="saveOPForm(event)">
+        <div class="modal-body p-4">
+          <input type="hidden" id="mop-orig-nama">
+          <input type="hidden" id="mop-orig-outlet">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Nama Personel <span class="text-danger">*</span></label>
+            <input type="text" class="form-control form-control-sm" id="mop-nama" list="dl-mop-nama" required autocomplete="off">
+            <datalist id="dl-mop-nama"></datalist>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-semibold">Outlet Penugasan <span class="text-danger">*</span></label>
+            <select class="form-select form-select-sm" id="mop-outlet" onchange="onOPOutletChange()">
+              <option value="">— Pilih Outlet —</option>
+            </select>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Jabatan</label>
+              <select class="form-select form-select-sm" id="mop-jabatan" onchange="onOPJabatanChange()">
+                <option value="QC Area">QC Area</option>
+                <option value="Kabag QC Area">Kabag QC Area</option>
+                <option value="QC Office">QC Office</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Divisi</label>
+              <input type="text" class="form-control form-control-sm" id="mop-divisi" list="dl-mop-divisi">
+              <datalist id="dl-mop-divisi"></datalist>
+            </div>
+          </div>
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Area</label>
+              <input type="text" class="form-control form-control-sm" id="mop-area" placeholder="Otomatis dari outlet">
+            </div>
+            <div class="col-6">
+              <label class="form-label small fw-semibold">Region</label>
+              <input type="text" class="form-control form-control-sm" id="mop-regio" placeholder="Otomatis dari outlet">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Batal</button>
+          <button type="submit" class="btn btn-sm btn-primary px-3" id="mop-btn">Simpan Penugasan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+/**
+ * Master Data Controller Logic
+ */
+let RAW_MASTER = { outlets: [], op: [] };
+let MASTER_VIEW_OUTLETS = [];
+let MASTER_VIEW_OP = [];
+let CURRENT_MASTER_TAB = 'outlet';
+let SELECTED_OUTLET_NAME = '';
+
+async function loadMaster() {
+  showSkeleton('master-outlet-table-box', 5);
+  try {
+    RAW_MASTER = await call('apiMaster', APP_STATE.token);
+    initMasterFilters();
+    renderCurrentMasterTab();
+    updateMasterAddButton();
+  } catch (err) {
+    toast('Gagal memuat master data: ' + err.message, 'error');
+  }
+}
+
+function initMasterFilters() {
+  const outlets = RAW_MASTER.outlets || [];
+  const regions = [...new Set(outlets.map(o => o['RM'] || o['Kota']).filter(Boolean))].sort();
+  const areas   = [...new Set(outlets.map(o => o['Area']).filter(Boolean))].sort();
+  const classes = [...new Set(outlets.map(o => o['Class'] || o['Kelas']).filter(Boolean))].sort();
+  const kabags  = [...new Set(outlets.map(o => o['KabagQCArea'] || o['KABAG QC AREA']).filter(Boolean))].sort();
+
+  populateSelect('ms-filter-region', regions, null, null, true, 'Semua Region');
+  populateSelect('ms-filter-area', areas, null, null, true, 'Semua Area');
+  populateSelect('ms-filter-class', classes, null, null, true, 'Semua Class');
+  populateSelect('ms-filter-kabag', kabags, null, null, true, 'Semua Kabag');
+
+  const opRows = RAW_MASTER.op || [];
+  const opAreas = [...new Set(opRows.map(o => o['AREA']).filter(Boolean))].sort();
+  const opRegios = [...new Set(opRows.map(o => o['REGIO']).filter(Boolean))].sort();
+
+  populateSelect('ms-op-filter-area', opAreas, null, null, true, 'Semua Area');
+  populateSelect('ms-op-filter-regio', opRegios, null, null, true, 'Semua Region');
+}
+
+function switchMasterTab(tab) {
+  CURRENT_MASTER_TAB = tab;
+  $('tab-btn-outlet').classList.toggle('active', tab === 'outlet');
+  $('tab-btn-op').classList.toggle('active', tab === 'op');
+
+  $('master-outlet-container').style.display = tab === 'outlet' ? 'block' : 'none';
+  $('master-op-container').style.display     = tab === 'op' ? 'block' : 'none';
+
+  renderCurrentMasterTab();
+}
+
+function updateMasterAddButton() {
+  const btn = $('btn-master-add');
+  if (!btn) return;
+  const canManage = isAdminUI() || (RAW_MASTER && RAW_MASTER.canManage);
+  btn.classList.toggle('d-none', !canManage);
+  btn.textContent = CURRENT_MASTER_TAB === 'outlet' ? '+ Tambah Outlet' : '+ Tambah Penugasan';
+}
+
+function renderCurrentMasterTab() {
+  updateMasterAddButton();
+  if (CURRENT_MASTER_TAB === 'outlet') {
+    filterMasterOutlet();
+  } else {
+    filterMasterOP();
+  }
+}
+
+function filterMasterOutlet() {
+  const q      = ($('ms-outlet-search').value || '').toLowerCase();
+  const region = ($('ms-filter-region').value || '').toLowerCase();
+  const area   = ($('ms-filter-area').value || '').toLowerCase();
+  const kelas  = ($('ms-filter-class').value || '').toLowerCase();
+  const kabag  = ($('ms-filter-kabag').value || '').toLowerCase();
+
+  const filtered = (RAW_MASTER.outlets || []).filter(o => {
+    const nameStr = (o['Nama Outlet'] || o['NamaOutlet'] || '').toLowerCase();
+    const codeStr = (o['KodeOutlet'] || o['code'] || '').toLowerCase();
+    const cityStr = (o['Kota'] || '').toLowerCase();
+    if (q && !nameStr.includes(q) && !codeStr.includes(q) && !cityStr.includes(q)) return false;
+
+    const oRegion = (o['RM'] || o['Kota'] || '').toLowerCase();
+    if (region && oRegion !== region) return false;
+
+    const oArea = (o['Area'] || '').toLowerCase();
+    if (area && oArea !== area) return false;
+
+    const oClass = (o['Class'] || o['Kelas'] || '').toLowerCase();
+    if (kelas && oClass !== kelas) return false;
+
+    const oKabag = (o['KabagQCArea'] || o['KABAG QC AREA'] || '').toLowerCase();
+    if (kabag && oKabag !== kabag) return false;
+
+    return true;
+  });
+
+  $('master-total-count').textContent = `${filtered.length} Outlet`;
+
+  const cols = [
+    { key: 'code', label: 'Kode', render: r => `<span class="badge bg-light text-dark border fw-bold">${esc(r['KodeOutlet'] || r['code'])}</span>` },
+    { key: 'Nama Outlet', label: 'Nama Outlet', render: r => `<span class="fw-bold text-dark">${esc(r['Nama Outlet'] || r['NamaOutlet'])}</span>` },
+    { key: 'Class', label: 'Class', render: r => `<span class="badge bg-primary-subtle text-primary border">${esc(r['Class'] || r['Kelas'] || '-')}</span>` },
+    { key: 'Area', label: 'Area', render: r => esc(r['Area'] || '-') },
+    { key: 'RM', label: 'Region / RM', render: r => `${esc(r['Kota'] || '')} <span class="text-muted">(${esc(r['RM'] || '-')})</span>` },
+    { key: 'KabagQCArea', label: 'Kabag QC Area', render: r => esc(r['KabagQCArea'] || r['KABAG QC AREA'] || '-') },
+    { key: 'StatusOutlet', label: 'Status', render: r => statusBadgeHtml(r['StatusOutlet'] || 'Active') },
+    { 
+      key: 'aksi', 
+      label: 'Aksi', 
+      render: (r, idx) => {
+        let h = `<button class="btn btn-sm btn-outline-primary py-1 px-2" style="font-size:0.78rem;" onclick="viewOutletDetail('${esc(r['KodeOutlet'] || r['code'])}')">Detail</button>`;
+        if (isAdminUI()) {
+          h += ` <button class="btn btn-sm btn-light border py-1 px-2" style="font-size:0.78rem;" onclick="openOutletForm(${idx})">Edit</button>`;
+          h += ` <button class="btn btn-sm btn-outline-danger py-1 px-2" style="font-size:0.78rem;" onclick="deleteOutletAction(${idx})">Hapus</button>`;
+        }
+        return h;
+      }
+    }
+  ];
+
+  MASTER_VIEW_OUTLETS = filtered;
+  buildTable('master-outlet-table-box', cols, filtered, { emptyText: 'Tidak ada data outlet yang sesuai kriteria.' });
+}
+
+function filterMasterOP() {
+  const q     = ($('ms-op-search').value || '').toLowerCase();
+  const area  = ($('ms-op-filter-area').value || '').toLowerCase();
+  const regio = ($('ms-op-filter-regio').value || '').toLowerCase();
+
+  const filtered = (RAW_MASTER.op || []).filter(o => {
+    const nameStr = (o['NAMA'] || '').toLowerCase();
+    const outStr  = (o['OUTLET'] || '').toLowerCase();
+    if (q && !nameStr.includes(q) && !outStr.includes(q)) return false;
+
+    const oArea = (o['AREA'] || '').toLowerCase();
+    if (area && oArea !== area) return false;
+
+    const oRegio = (o['REGIO'] || '').toLowerCase();
+    if (regio && oRegio !== regio) return false;
+
+    return true;
+  });
+
+  $('master-total-count').textContent = `${filtered.length} Penugasan`;
+
+  const cols = [
+    { key: 'NAMA', label: 'Nama Personel', render: r => `<div class="d-flex align-items-center gap-2">${avatarHtml(r['NAMA'], 'sm')}<span class="fw-bold">${esc(r['NAMA'])}</span></div>` },
+    { key: 'JABATAN', label: 'Jabatan', render: r => `<span class="badge bg-secondary-subtle text-secondary">${esc(r['JABATAN'] || 'QC Area')}</span>` },
+    { key: 'OUTLET', label: 'Outlet Penugasan', render: r => `<span class="fw-semibold text-primary">${esc(r['OUTLET'])}</span>` },
+    { key: 'AREA', label: 'Area', render: r => esc(r['AREA'] || '-') },
+    { key: 'REGIO', label: 'Region', render: r => esc(r['REGIO'] || '-') },
+    { key: 'DIVISI', label: 'Divisi', render: r => esc(r['DIVISI'] || '-') }
+  ];
+  if (isAdminUI()) {
+    cols.push({
+      key: 'aksi',
+      label: 'Aksi',
+      render: (r, idx) => `
+        <button class="btn btn-sm btn-light border py-1 px-2" style="font-size:0.78rem;" onclick="openOPForm(${idx})">Edit</button>
+        <button class="btn btn-sm btn-outline-danger py-1 px-2" style="font-size:0.78rem;" onclick="deleteOPAction(${idx})">Hapus</button>`
+    });
+  }
+
+  MASTER_VIEW_OP = filtered;
+  buildTable('master-op-table-box', cols, filtered, { emptyText: 'Tidak ada data penugasan QC yang sesuai.' });
+}
+
+function resetMasterFilters() {
+  $('ms-outlet-search').value = '';
+  $('ms-filter-region').value = '';
+  $('ms-filter-area').value   = '';
+  $('ms-filter-class').value  = '';
+  $('ms-filter-kabag').value  = '';
+  $('ms-op-search').value     = '';
+  $('ms-op-filter-area').value = '';
+  $('ms-op-filter-regio').value = '';
+  renderCurrentMasterTab();
+}
+
+function viewOutletDetail(code) {
+  const o = (RAW_MASTER.outlets || []).find(it => (it['KodeOutlet'] || it['code']) === code);
+  if (!o) return;
+  SELECTED_OUTLET_NAME = o['Nama Outlet'] || o['NamaOutlet'];
+
+  $('mod-outlet-nama').textContent = SELECTED_OUTLET_NAME;
+  $('mod-outlet-code').textContent = `Kode: ${code} | Class: ${o['Class'] || o['Kelas'] || '-'}`;
+
+  const rows = [
+    ['LOB / Divisi', o['LOB'] || 'Cinema & FnB'],
+    ['Area Operasional', o['Area'] || '-'],
+    ['Area Manager (AM)', o['AM'] || '-'],
+    ['Kota / Wilayah', o['Kota'] || '-'],
+    ['Regional Manager (RM)', o['RM'] || '-'],
+    ['Kabag QC Area', o['KabagQCArea'] || o['KABAG QC AREA'] || '-'],
+    ['Status Operasional', statusBadgeHtml(o['StatusOutlet'] || 'Active')]
+  ];
+
+  let bodyHtml = '<div class="list-group list-group-flush">';
+  rows.forEach(([lbl, val]) => {
+    bodyHtml += `
+      <div class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
+        <span class="text-secondary small">${esc(lbl)}</span>
+        <span class="fw-semibold text-end">${val}</span>
+      </div>`;
+  });
+  bodyHtml += '</div>';
+
+  $('mod-outlet-body').innerHTML = bodyHtml;
+  openModal('modal-outlet-detail');
+}
+
+// ─── CRUD (Admin / QC Office) ────────────────────────────────────────────────
+function openMasterAddForm() {
+  if (CURRENT_MASTER_TAB === 'outlet') openOutletForm(-1);
+  else openOPForm(-1);
+}
+
+function _fillDatalist(id, values) {
+  const el = $(id);
+  if (!el) return;
+  el.innerHTML = [...new Set(values.filter(Boolean))].sort().map(v => `<option value="${esc(v)}">`).join('');
+}
+
+function openOutletForm(idx) {
+  const o = idx >= 0 ? MASTER_VIEW_OUTLETS[idx] : null;
+  const all = RAW_MASTER.outlets || [];
+  _fillDatalist('dl-mof-lob',   all.map(x => x['LOB']));
+  _fillDatalist('dl-mof-kelas', all.map(x => x['Class'] || x['Kelas']));
+  _fillDatalist('dl-mof-area',  all.map(x => x['Area']));
+  _fillDatalist('dl-mof-kota',  all.map(x => x['Kota']));
+  _fillDatalist('dl-mof-am',    all.map(x => x['AM']));
+  _fillDatalist('dl-mof-rm',    all.map(x => x['RM']));
+  _fillDatalist('dl-mof-kabag', all.map(x => x['KabagQCArea'] || x['KABAG QC AREA']));
+
+  $('mof-title').textContent = o ? 'Edit Outlet' : 'Tambah Outlet';
+  $('mof-orig-kode').value = o ? (o['KodeOutlet'] || o['code'] || '') : '';
+  $('mof-kode').value   = o ? (o['KodeOutlet'] || o['code'] || '') : '';
+  $('mof-nama').value   = o ? (o['NamaOutlet'] || o['Nama Outlet'] || '') : '';
+  $('mof-lob').value    = o ? (o['LOB'] || '') : '';
+  $('mof-kelas').value  = o ? (o['Class'] || o['Kelas'] || '') : '';
+  $('mof-area').value   = o ? (o['Area'] || '') : '';
+  $('mof-kota').value   = o ? (o['Kota'] || '') : '';
+  $('mof-am').value     = o ? (o['AM'] || '') : '';
+  $('mof-rm').value     = o ? (o['RM'] || '') : '';
+  $('mof-kabag').value  = o ? (o['KabagQCArea'] || o['KABAG QC AREA'] || '') : '';
+  $('mof-status').value = o && norm_(o['StatusOutlet']) === 'inactive' ? 'Inactive' : 'Active';
+  $('mof-kode').readOnly = !!o;
+  $('mof-nama').readOnly = !!o;
+  $('mof-lock-hint').classList.toggle('d-none', !o);
+  openModal('modal-outlet-form');
+}
+
+async function saveOutletForm(event) {
+  event.preventDefault();
+  const btn = $('mof-btn');
+  btn.disabled = true;
+  const payload = {
+    origKode:    $('mof-orig-kode').value,
+    kodeOutlet:  $('mof-kode').value.trim(),
+    namaOutlet:  $('mof-nama').value.trim(),
+    lob:         $('mof-lob').value,
+    kelas:       $('mof-kelas').value,
+    area:        $('mof-area').value,
+    kota:        $('mof-kota').value,
+    am:          $('mof-am').value,
+    rm:          $('mof-rm').value,
+    kabagQCArea: $('mof-kabag').value,
+    statusOutlet:$('mof-status').value
+  };
+  try {
+    const res = await call('apiSaveOutlet', APP_STATE.token, payload);
+    closeModal('modal-outlet-form');
+    toast(res && res.created ? 'Outlet baru berhasil ditambahkan.' : 'Data outlet berhasil diperbarui.', 'success');
+    await loadMaster();
+  } catch (err) {
+    toast('Gagal menyimpan outlet: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function deleteOutletAction(idx) {
+  const o = MASTER_VIEW_OUTLETS[idx];
+  if (!o) return;
+  const kode = o['KodeOutlet'] || o['code'];
+  confirmDialog(
+    'Hapus Outlet',
+    `Hapus outlet <b>${esc(o['NamaOutlet'] || o['Nama Outlet'])}</b> (${esc(kode)})?<br><span class="text-muted">Outlet yang sudah memiliki transaksi / penugasan tidak dapat dihapus — gunakan status Inactive.</span>`,
+    async () => {
+      try {
+        await call('apiDeleteOutlet', APP_STATE.token, kode);
+        toast('Outlet berhasil dihapus.', 'success');
+        await loadMaster();
+      } catch (err) {
+        toast('Gagal menghapus outlet: ' + err.message, 'error');
+      }
+    },
+    true
+  );
+}
+
+function openOPForm(idx) {
+  const o = idx >= 0 ? MASTER_VIEW_OP[idx] : null;
+  const outlets = (RAW_MASTER.outlets || []);
+  const outletNames = outlets.map(x => x['NamaOutlet'] || x['Nama Outlet']).filter(Boolean).sort();
+  populateSelect('mop-outlet', outletNames, null, null, false);
+  $('mop-outlet').insertAdjacentHTML('afterbegin', '<option value="">— (Tanpa outlet / roster saja) —</option>');
+  window.__opOutletOptions = $('mop-outlet').innerHTML;
+
+  _fillDatalist('dl-mop-nama',   (RAW_MASTER.op || []).map(x => x['NAMA']));
+  _fillDatalist('dl-mop-divisi', (RAW_MASTER.op || []).map(x => x['DIVISI']));
+
+  $('mop-title').textContent = o ? 'Edit Penugasan QC Area' : 'Tambah Penugasan QC Area';
+  $('mop-orig-nama').value   = o ? (o['NAMA'] || '') : '';
+  $('mop-orig-outlet').value = o ? (o['OUTLET'] || '') : '';
+  $('mop-nama').value    = o ? (o['NAMA'] || '') : '';
+  $('mop-outlet').value  = o ? (o['OUTLET'] || '') : '';
+  const jb = String(o ? (o['JABATAN'] || o['DIVISI'] || 'QC Area') : 'QC Area').toLowerCase();
+  $('mop-jabatan').value = jb.includes('office') ? 'QC Office' : (jb.includes('kabag') ? 'Kabag QC Area' : 'QC Area');
+  onOPJabatanChange(true);
+  if (o && o['OUTLET'] && ![...$('mop-outlet').options].some(x => x.value === o['OUTLET'])) {
+    $('mop-outlet').insertAdjacentHTML('beforeend', `<option value="${esc(o['OUTLET'])}">${esc(o['OUTLET'])}</option>`);
+    $('mop-outlet').value = o['OUTLET'];
+  }
+  $('mop-divisi').value  = o ? (o['DIVISI'] || '') : '';
+  $('mop-area').value    = o ? (o['AREA'] || '') : '';
+  $('mop-regio').value   = o ? (o['REGIO'] || '') : '';
+  openModal('modal-op-form');
+}
+
+/** PRD §5.5: QC Office hanya Office; QC Area memakai dropdown outlet dari KODE. */
+function onOPJabatanChange(keepValue) {
+  const isOffice = $('mop-jabatan').value === 'QC Office';
+  const cur = $('mop-outlet').value;
+  if (isOffice) {
+    $('mop-outlet').innerHTML = '<option value="OFFICE">Office</option>';
+    $('mop-area').value = ''; $('mop-regio').value = '';
+  } else {
+    $('mop-outlet').innerHTML = window.__opOutletOptions || '<option value="">— Pilih Outlet —</option>';
+    if (keepValue === true) $('mop-outlet').value = cur;
+  }
+}
+
+function onOPOutletChange() {
+  const nama = $('mop-outlet').value;
+  const o = (RAW_MASTER.outlets || []).find(x => (x['NamaOutlet'] || x['Nama Outlet']) === nama);
+  if (!o) { if (nama && nama !== 'OFFICE') toast('Outlet tidak ditemukan di master — Area & Region tidak diisi otomatis.', 'warning'); return; }
+  $('mop-area').value  = o['Area'] || '';
+  $('mop-regio').value = o['RM'] || '';
+}
+
+async function saveOPForm(event) {
+  event.preventDefault();
+  const btn = $('mop-btn');
+  btn.disabled = true;
+  const payload = {
+    origNama:   $('mop-orig-nama').value,
+    origOutlet: $('mop-orig-outlet').value,
+    nama:       $('mop-nama').value.trim(),
+    outlet:     $('mop-outlet').value,
+    jabatan:    $('mop-jabatan').value,
+    divisi:     $('mop-divisi').value,
+    area:       $('mop-area').value,
+    regio:      $('mop-regio').value
+  };
+  try {
+    const res = await call('apiSaveOP', APP_STATE.token, payload);
+    closeModal('modal-op-form');
+    toast(res && res.created ? 'Penugasan baru berhasil ditambahkan.' : 'Penugasan berhasil diperbarui.', 'success');
+    await loadMaster();
+  } catch (err) {
+    toast('Gagal menyimpan penugasan: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function deleteOPAction(idx) {
+  const o = MASTER_VIEW_OP[idx];
+  if (!o) return;
+  confirmDialog(
+    'Hapus Penugasan',
+    `Hapus penugasan <b>${esc(o['NAMA'])}</b> pada outlet <b>${esc(o['OUTLET'])}</b>?`,
+    async () => {
+      try {
+        await call('apiDeleteOP', APP_STATE.token, o['NAMA'], o['OUTLET']);
+        toast('Penugasan berhasil dihapus.', 'success');
+        await loadMaster();
+      } catch (err) {
+        toast('Gagal menghapus penugasan: ' + err.message, 'error');
+      }
+    },
+    true
+  );
+}
+
+function openOutletCleaningHistory() {
+  closeModal('modal-outlet-detail');
+  navigateTo('cleaning');
+  setTimeout(() => {
+    const sel = $('cuci-outlet');
+    if (sel) {
+      sel.value = SELECTED_OUTLET_NAME;
+      if (typeof renderCuciTable === 'function') renderCuciTable();
+    }
+  }, 400);
+}
+</script>

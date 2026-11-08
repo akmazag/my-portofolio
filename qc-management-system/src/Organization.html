@@ -1,0 +1,825 @@
+<!-- Organization.html — QC Management System: Modul Organisasi -->
+<div id="view-organization" class="module-view" style="display:none;">
+
+  <!-- Ringkasan workforce (klik kartu untuk filter) -->
+  <div class="row g-3 mb-4" id="org-summary-cards"></div>
+
+  <!-- ======================= SECTION: QC OFFICE ======================= -->
+  <div class="org-section-header d-flex align-items-center gap-2 mb-3">
+    <div class="org-section-icon" style="background:#172554;">
+      <svg width="16" height="16" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    </div>
+    <div>
+      <div class="org-section-title">QC Office</div>
+      <div class="org-section-sub text-muted" id="org-office-count">Memuat…</div>
+    </div>
+    <button class="btn btn-sm btn-primary ms-auto px-3 d-none" id="org-btn-add-office" onclick="openOfficeForm('')">+ Tambah QC Office</button>
+  </div>
+  <div class="row g-3 mb-5" id="org-office-grid">
+    <div class="col-12"><div class="d-flex justify-content-center py-4"><div class="spinner-border spinner-border-sm text-secondary"></div></div></div>
+  </div>
+
+  <!-- ======================= SECTION: KABAG QC AREA ======================= -->
+  <div class="org-section-header d-flex align-items-center gap-2 mb-3">
+    <div class="org-section-icon" style="background:#172554;">
+      <svg width="16" height="16" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+    </div>
+    <div>
+      <div class="org-section-title">Tim QC Area (Kabag Area)</div>
+      <div class="org-section-sub text-muted" id="org-kabag-count">Memuat…</div>
+    </div>
+    <div class="ms-auto d-flex gap-2 flex-wrap">
+      <input type="search" class="form-control form-control-sm" id="org-search" placeholder="Cari nama / area…" style="max-width:200px;" oninput="filterOrgTeam()">
+      <select class="form-select form-select-sm" id="org-filter-assign" style="max-width:180px;" onchange="filterOrgTeam()">
+        <option value="">Semua personel</option>
+        <option value="with">Memiliki outlet</option>
+        <option value="without">Belum ada outlet</option>
+      </select>
+    </div>
+  </div>
+  <div class="row g-3 mb-5" id="org-kabag-grid"></div>
+
+</div><!-- /view-organization -->
+
+<!-- ======================= MODAL: DETAIL PERSONEL ======================= -->
+<div class="modal fade" id="modal-person-detail" tabindex="-1" aria-labelledby="modal-person-detail-label" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header" style="background:#172554; color:#fff; border-radius:0.5rem 0.5rem 0 0;">
+        <div class="d-flex align-items-center gap-3">
+          <div id="mpd-avatar" class="org-avatar-lg" style="background:#3B82F6; color:#fff; font-size:1.4rem; font-weight:700; width:56px; height:56px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;"></div>
+          <div>
+            <h5 class="modal-title mb-0 fw-700" id="modal-person-detail-label" style="color:#fff;" id="mpd-nama"></h5>
+            <div class="small opacity-75" id="mpd-jabatan"></div>
+          </div>
+        </div>
+        <button type="button" class="btn-close btn-close-white ms-auto" data-bs-dismiss="modal" aria-label="Tutup"></button>
+      </div>
+      <div class="modal-body p-4">
+        <!-- Info Row -->
+        <div class="row g-3 mb-4">
+          <div class="col-6 col-md-4">
+            <div class="small text-muted mb-1">Area</div>
+            <div class="fw-600" id="mpd-area">—</div>
+          </div>
+          <div class="col-6 col-md-4">
+            <div class="small text-muted mb-1">Region</div>
+            <div class="fw-600" id="mpd-region">—</div>
+          </div>
+          <div class="col-6 col-md-4">
+            <div class="small text-muted mb-1">Divisi</div>
+            <div class="fw-600" id="mpd-divisi">—</div>
+          </div>
+        </div>
+
+        <!-- Distribusi Outlet -->
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <div class="fw-700 text-dark">Distribusi Outlet</div>
+          <span class="badge" style="background:#EFF6FF; color:#172554;" id="mpd-outlet-count">0 outlet</span>
+        </div>
+        <div class="table-responsive" style="max-height:340px; overflow-y:auto;">
+          <table class="table table-sm table-hover mb-0" id="mpd-outlet-table">
+            <thead style="position:sticky; top:0; z-index:1; background:#F5F7FB;">
+              <tr>
+                <th style="font-weight:600; font-size:.8rem;">Kode</th>
+                <th style="font-weight:600; font-size:.8rem;">Nama Outlet</th>
+                <th style="font-weight:600; font-size:.8rem;">Kelas</th>
+                <th style="font-weight:600; font-size:.8rem;">Area</th>
+              </tr>
+            </thead>
+            <tbody id="mpd-outlet-tbody">
+              <tr><td colspan="4" class="text-center text-muted py-3">Tidak ada data</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer" id="mpd-footer" style="border-top:1px solid #E2E8F0;">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Tutup</button>
+        <button type="button" class="btn btn-sm d-none" id="mpd-btn-edit"
+          style="background:#172554; color:#fff; border:none;"
+          onclick="openEditPersonnel(currentPersonNama)">
+          Edit Data
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= MODAL: EDIT PERSONEL ======================= -->
+<div class="modal fade" id="modal-person-edit" tabindex="-1" aria-labelledby="modal-person-edit-label" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header" style="background:#172554; color:#fff;">
+        <h5 class="modal-title" id="modal-person-edit-label" style="color:#fff;">Edit Data Personel</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Tutup"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="mb-3">
+          <label class="form-label small fw-600">Nama</label>
+          <input type="text" id="mpe-nama" class="form-control" readonly style="background:#F5F7FB;">
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-600">Jabatan <span class="text-danger">*</span></label>
+          <select id="mpe-jabatan" class="form-select">
+            <option value="">— Pilih Jabatan —</option>
+            <option value="QC Office">QC Office</option>
+            <option value="QC Area">QC Area</option>
+            <option value="Kabag QC Area">Kabag QC Area</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-600">Tambah Outlet</label>
+          <div class="input-group mb-2">
+            <select id="mpe-outlet-add" class="form-select">
+              <option value="">— Pilih Outlet —</option>
+            </select>
+            <button class="btn btn-outline-secondary btn-sm" type="button" onclick="addOutletToEdit()">Tambah</button>
+          </div>
+          <div id="mpe-outlet-tags" class="d-flex flex-wrap gap-2 mt-1" style="min-height:36px;"></div>
+        </div>
+        <div class="row g-3">
+          <div class="col-6">
+            <label class="form-label small fw-600">Area</label>
+            <input type="text" id="mpe-area" class="form-control" readonly style="background:#F5F7FB;" placeholder="Auto-fill">
+          </div>
+          <div class="col-6">
+            <label class="form-label small fw-600">Regio</label>
+            <input type="text" id="mpe-regio" class="form-control" readonly style="background:#F5F7FB;" placeholder="Auto-fill">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer" style="border-top:1px solid #E2E8F0;">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+        <button type="button" class="btn btn-sm" id="mpe-btn-save"
+          style="background:#172554; color:#fff; border:none;"
+          onclick="savePersonnel()">
+          Simpan
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= MODAL: FORM QC OFFICE ======================= -->
+<div class="modal fade" id="modal-office-form" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-md">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header" style="background:#172554; color:#fff;">
+        <h5 class="modal-title" id="mof2-title" style="color:#fff;">Tambah QC Office</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Tutup"></button>
+      </div>
+      <form onsubmit="saveOfficeForm(event)" autocomplete="off">
+        <div class="modal-body p-4">
+          <input type="hidden" id="mof2-orig">
+          <div class="mb-3">
+            <label class="form-label small fw-600">Nama Lengkap <span class="text-danger">*</span></label>
+            <input type="text" class="form-control form-control-sm" id="mof2-nama" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-600">Username <span class="text-danger">*</span></label>
+            <input type="text" class="form-control form-control-sm" id="mof2-username" required placeholder="min. 4 karakter">
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-600" id="mof2-pass-label">Password <span class="text-danger">*</span></label>
+            <input type="text" class="form-control form-control-sm" id="mof2-pass" placeholder="Minimal 6 karakter" autocomplete="new-password">
+            <div class="form-text" id="mof2-pass-hint" style="font-size:.75rem;">Kosongkan jika tidak ingin mengubah password.</div>
+          </div>
+          <div class="mb-1">
+            <label class="form-label small fw-600">Status Akun</label>
+            <select class="form-select form-select-sm" id="mof2-status">
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer" style="border-top:1px solid #E2E8F0;">
+          <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+          <button type="submit" class="btn btn-sm btn-primary px-3" id="mof2-btn">Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= STYLES ======================= -->
+<style>
+  #view-organization {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  }
+
+  .org-section-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .org-section-title {
+    font-weight: 700;
+    font-size: 1rem;
+    color: #0F172A;
+    line-height: 1.2;
+  }
+
+  .org-section-sub {
+    font-size: .78rem;
+  }
+
+  /* Person Card */
+  .org-person-card {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 12px;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    transition: box-shadow .15s, transform .15s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .org-person-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: #3B82F6;
+  }
+
+  .org-person-card:hover {
+    box-shadow: 0 4px 20px rgba(23,37,84,.1);
+    transform: translateY(-2px);
+  }
+
+  .org-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1rem;
+    color: #fff;
+    flex-shrink: 0;
+    user-select: none;
+  }
+
+  .org-card-name {
+    font-weight: 700;
+    font-size: .93rem;
+    color: #0F172A;
+    margin-bottom: .15rem;
+    line-height: 1.3;
+  }
+
+  .org-card-jabatan {
+    font-size: .78rem;
+    color: #64748B;
+    margin-bottom: .6rem;
+  }
+
+  .org-card-meta {
+    font-size: .75rem;
+    color: #64748B;
+    margin-bottom: .4rem;
+    display: flex;
+    align-items: center;
+    gap: .3rem;
+  }
+
+  .org-role-badge {
+    display: inline-block;
+    padding: .2rem .6rem;
+    border-radius: 20px;
+    font-size: .7rem;
+    font-weight: 600;
+    background: #EFF6FF;
+    color: #1D4ED8;
+    border: 1px solid #BFDBFE;
+  }
+
+  .org-outlet-badge {
+    display: inline-block;
+    padding: .2rem .6rem;
+    border-radius: 20px;
+    font-size: .7rem;
+    font-weight: 600;
+    background: #F0FDF4;
+    color: #16A34A;
+    border: 1px solid #BBF7D0;
+  }
+
+  .org-detail-btn {
+    margin-top: auto;
+    padding-top: .75rem;
+    border-top: 1px solid #F1F5F9;
+  }
+
+  .btn-org-detail {
+    font-size: .78rem;
+    font-weight: 600;
+    padding: .3rem .8rem;
+    border-radius: 8px;
+    border: 1.5px solid #E2E8F0;
+    background: #F5F7FB;
+    color: #0F172A;
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+  }
+
+  .btn-org-detail:hover {
+    background: #EFF6FF;
+    border-color: #3B82F6;
+    color: #1D4ED8;
+  }
+
+  .fw-600 { font-weight: 600 !important; }
+  .fw-700 { font-weight: 700 !important; }
+
+  /* Outlet tag chip */
+  .outlet-tag-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+    padding: .2rem .6rem;
+    background: #EFF6FF;
+    border: 1px solid #BFDBFE;
+    border-radius: 20px;
+    font-size: .75rem;
+    font-weight: 600;
+    color: #1D4ED8;
+  }
+
+  .outlet-tag-chip button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #64748B;
+    padding: 0;
+    font-size: .9rem;
+    line-height: 1;
+  }
+
+  .outlet-tag-chip button:hover { color: #DC2626; }
+</style>
+
+<!-- ======================= JAVASCRIPT ======================= -->
+<script>
+(function () {
+  'use strict';
+
+  /* ── Helpers ── */
+  const escHtml = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  function getInitials(nama) {
+    if (!nama) return '?';
+    const parts = String(nama).trim().split(/\s+/);
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return nama.substring(0, 2).toUpperCase();
+  }
+
+  const AVATAR_COLORS = ['#3B82F6','#8B5CF6','#EC4899','#F59E0B','#10B981','#EF4444','#06B6D4'];
+  function avatarColor(nama) {
+    let h = 0;
+    for (let i = 0; i < (nama || '').length; i++) h = (h * 31 + nama.charCodeAt(i)) & 0xFFFFFF;
+    return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
+  }
+
+  function showOrgModal(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const m = bootstrap.Modal.getOrCreateInstance(el);
+    m.show();
+  }
+
+  function hideOrgModal(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    bootstrap.Modal.getInstance(el)?.hide();
+  }
+
+  /* ── State ── */
+  let _orgData = null;           // cached from apiMapping
+  let currentPersonNama = '';     // exposed globally for modal Edit button
+  let _editOutlets = [];          // selected outlets in edit form
+
+  /* expose globally so modal button onclick works */
+  window.currentPersonNama = '';
+
+  /* ══════════════════════════════════════════════
+     loadOrganization — entry point
+  ══════════════════════════════════════════════ */
+  async function loadOrganization() {
+    try {
+      _orgData = await call('apiMapping', APP_STATE.token);
+      _renderSummary(_orgData.summary || {});
+      _renderSection('org-office-grid', 'org-office-count', _orgData.office || [], 'office');
+      filterOrgTeam();
+      const addBtn = document.getElementById('org-btn-add-office');
+      if (addBtn) addBtn.classList.toggle('d-none', !isAdminUI());
+    } catch (e) {
+      toast('Gagal memuat data organisasi: ' + e.message, 'error');
+      document.getElementById('org-office-grid').innerHTML =
+        '<div class="col-12 text-danger small p-2">Gagal memuat data.</div>';
+    }
+  }
+
+  function _renderSummary(sm) {
+    const el = document.getElementById('org-summary-cards');
+    if (!el) return;
+    const cards = [
+      { l: 'QC Office', v: sm.totalOffice || 0, c: '#172554' },
+      { l: 'QC Area / Kabag', v: sm.totalQCArea || 0, c: '#3B82F6', s: `${sm.qcTanpaOutlet || 0} belum ada outlet`, f: 'without' },
+      { l: 'Specialist', v: sm.totalSpecialist || 0, c: '#8B5CF6' },
+      { l: 'Outlet Ditangani', v: sm.totalOutlet || 0, c: '#16A34A', s: `${sm.outletTanpaQC || 0} outlet tanpa QC Area` }
+    ];
+    el.innerHTML = cards.map(k => `
+      <div class="col-6 col-lg-3">
+        <div class="card p-3 border-0 shadow-xs h-100" style="border-radius:12px; ${k.f ? 'cursor:pointer;' : ''}" ${k.f ? `onclick="document.getElementById('org-filter-assign').value='${k.f}'; filterOrgTeam();"` : ''}>
+          <div class="small text-muted fw-semibold">${escHtml(k.l)}</div>
+          <div class="fw-bold" style="font-size:1.6rem; color:${k.c};">${escHtml(k.v)}</div>
+          ${k.s ? `<div class="kpi-sub">${escHtml(k.s)}</div>` : ''}
+        </div>
+      </div>`).join('');
+  }
+
+  function filterOrgTeam() {
+    if (!_orgData) return;
+    const q = String((document.getElementById('org-search') || {}).value || '').toLowerCase();
+    const fa = (document.getElementById('org-filter-assign') || {}).value || '';
+    const list = (_orgData.kabag || []).filter(p => {
+      if (q && !(String(p.nama).toLowerCase().includes(q) || String(p.area || '').toLowerCase().includes(q))) return false;
+      if (fa === 'with' && !p.outletCount) return false;
+      if (fa === 'without' && p.outletCount) return false;
+      return true;
+    });
+    _renderSection('org-kabag-grid', 'org-kabag-count', list, 'area');
+  }
+
+  /* ── Render helpers ── */
+  function _renderSection(gridId, countId, data, type) {
+    const grid  = document.getElementById(gridId);
+    const count = document.getElementById(countId);
+    if (!grid) return;
+    count.textContent = data.length + ' personel';
+    if (!data.length) {
+      grid.innerHTML = '<div class="col-12 text-muted small">Tidak ada data.</div>';
+      return;
+    }
+    grid.innerHTML = data.map(p => _buildPersonCard(p, type)).join('');
+  }
+
+  function _buildPersonCard(p, type) {
+    const inits = getInitials(p.nama || p.NAMA || '');
+    const nama = escHtml(p.nama || p.NAMA || '');
+    const jabatan = escHtml(p.jabatan || p.JABATAN || (type === 'kabag' ? 'Kabag QC Area' : ''));
+    const namaRaw = String(p.nama || p.NAMA || '');
+    const color = avatarColor(namaRaw);
+
+    let metaHtml = '';
+    let badgeHtml = '';
+
+    if (type === 'office') {
+      badgeHtml = `<span class="org-role-badge">${escHtml(p.role || 'QC Office')}</span>` +
+        (p.username ? ` <span class="text-muted" style="font-size:.72rem;">@${escHtml(p.username)}</span>` : '') +
+        (String(p.status || 'Active').toLowerCase() === 'inactive' ? ' <span class="badge bg-danger-subtle text-danger">Nonaktif</span>' : '');
+    } else if (type === 'kabag') {
+      const jumlah = Array.isArray(p.outlets) ? p.outlets.length : (parseInt(p.jumlahOutlet) || 0);
+      badgeHtml = `<span class="org-outlet-badge">${jumlah} outlet</span>`;
+    } else if (type === 'area') {
+      const area   = escHtml(p.area   || p.AREA   || 'Wilayah belum ditetapkan');
+      const region = escHtml(p.region || p.REGIO  || '');
+      const jumlah = Number(p.outletCount != null ? p.outletCount : (Array.isArray(p.outlets) ? p.outlets.length : 0));
+      metaHtml = `
+        <div class="org-card-meta">
+          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          ${area}${region ? ' &bull; ' + region : ''}
+        </div>`;
+      badgeHtml = jumlah
+        ? `<span class="org-outlet-badge">${jumlah} outlet</span>`
+        : `<span class="badge bg-warning-subtle text-warning-emphasis">Belum ada outlet</span>`;
+      if (p.punyaAkun === false) badgeHtml += ` <span class="badge bg-light text-muted border" title="Belum memiliki akun login">tanpa akun</span>`;
+    }
+
+    const escapedNama = namaRaw.replace(/'/g, "\\'");
+    const jabatanEscaped = jabatan;
+
+    // QC Office: aksi Edit / Hapus untuk Admin; tanpa tombol Detail
+    let actionHtml = `<button class="btn-org-detail w-100"
+              onclick="openPersonDetail('${escapedNama.replace(/"/g, '&quot;')}', '${String(p.jabatan || p.JABATAN || '').replace(/'/g, "\\'")}')">
+              Detail
+            </button>`;
+    if (type === 'office') {
+      const uname = escHtml(p.username || '');
+      actionHtml = (isAdminUI() && uname)
+        ? `<div class="d-flex gap-2">
+             <button class="btn-org-detail flex-fill" onclick="openOfficeForm('${uname}')">Edit</button>
+             <button class="btn-org-detail flex-fill" style="color:#DC2626;" onclick="deleteOffice('${uname}')">Hapus</button>
+           </div>`
+        : '';
+    }
+
+    return `
+      <div class="col-12 col-sm-6 col-xl-4">
+        <div class="org-person-card">
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <div class="org-avatar" style="background:${escHtml(color)};">${escHtml(inits)}</div>
+            <div class="flex-grow-1 min-w-0">
+              <div class="org-card-name">${nama}</div>
+              <div class="org-card-jabatan">${jabatanEscaped}</div>
+            </div>
+          </div>
+          ${metaHtml}
+          <div class="mb-2">${badgeHtml}</div>
+          ${actionHtml ? `<div class="org-detail-btn">${actionHtml}</div>` : ''}
+        </div>
+      </div>`;
+  }
+
+  /* ══════════════════════════════════════════════
+     openPersonDetail
+  ══════════════════════════════════════════════ */
+  async function openPersonDetail(nama, jabatan) {
+    currentPersonNama = nama;
+    window.currentPersonNama = nama;
+
+    // Pre-populate header immediately
+    document.getElementById('modal-person-detail-label').textContent = nama;
+    document.getElementById('mpd-jabatan').textContent = jabatan;
+    document.getElementById('mpd-avatar').textContent = getInitials(nama);
+    document.getElementById('mpd-area').textContent   = '…';
+    document.getElementById('mpd-region').textContent = '…';
+    document.getElementById('mpd-divisi').textContent = '…';
+    document.getElementById('mpd-outlet-tbody').innerHTML =
+      '<tr><td colspan="4" class="text-center py-3"><div class="spinner-border spinner-border-sm"></div></td></tr>';
+    document.getElementById('mpd-outlet-count').textContent = '';
+    document.getElementById('mpd-btn-edit').classList.add('d-none');
+
+    showOrgModal('modal-person-detail');
+
+    try {
+      const d = await call('apiGetPersonnel', APP_STATE.token, nama);
+
+      document.getElementById('mpd-area').textContent   = d.area   || '—';
+      document.getElementById('mpd-region').textContent = d.region || d.regio || '—';
+      document.getElementById('mpd-divisi').textContent = d.divisi || '—';
+
+      const outlets = Array.isArray(d.outlets) ? d.outlets : [];
+      document.getElementById('mpd-outlet-count').textContent = outlets.length + ' outlet';
+
+      const tbody = document.getElementById('mpd-outlet-tbody');
+      if (!outlets.length) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">Tidak ada outlet terdaftar</td></tr>';
+      } else {
+        tbody.innerHTML = outlets.map(o => `
+          <tr>
+            <td class="text-muted" style="font-size:.8rem;">${escHtml(o.kode || o.code || '—')}</td>
+            <td style="font-size:.85rem; font-weight:500;">${escHtml(o.nama || o['Nama Outlet'] || '—')}</td>
+            <td>${_gradeBadge(o.kelas || o.Kelas || '—')}</td>
+            <td class="text-muted" style="font-size:.8rem;">${escHtml(o.area || o.Area || '—')}</td>
+          </tr>`).join('');
+      }
+
+      if (d.canEdit || isAdminUI()) {
+        document.getElementById('mpd-btn-edit').classList.remove('d-none');
+      }
+    } catch (e) {
+      document.getElementById('mpd-outlet-tbody').innerHTML =
+        `<tr><td colspan="4" class="text-danger text-center py-3">${escHtml(e.message)}</td></tr>`;
+    }
+  }
+
+  function _gradeBadge(g) {
+    const COLOR = {A:'#16A34A', B:'#22C55E', C:'#F59E0B', D:'#F97316', E:'#DC2626'};
+    const c = COLOR[String(g).toUpperCase()] || '#94A3B8';
+    return `<span style="display:inline-block;padding:.15rem .45rem;border-radius:6px;font-size:.72rem;font-weight:700;background:${c};color:#fff;">${escHtml(g)}</span>`;
+  }
+
+  /* ══════════════════════════════════════════════
+     openEditPersonnel
+  ══════════════════════════════════════════════ */
+  async function openEditPersonnel(nama) {
+    hideOrgModal('modal-person-detail');
+
+    document.getElementById('mpe-nama').value    = nama;
+    document.getElementById('mpe-jabatan').value = '';
+    document.getElementById('mpe-area').value    = '';
+    document.getElementById('mpe-regio').value   = '';
+    document.getElementById('mpe-outlet-tags').innerHTML = '';
+    _editOutlets = [];
+
+    // Populate outlet dropdown from APP_STATE
+    const outlets = (typeof APP_STATE !== 'undefined' && APP_STATE.outlets) ? APP_STATE.outlets : [];
+    const sel = document.getElementById('mpe-outlet-add');
+    sel.innerHTML = '<option value="">— Pilih Outlet —</option>' +
+      outlets.map(o => {
+        const kode = escHtml(o.kode || o.code || o['Kode'] || '');
+        const namaO = escHtml(o.nama || o['Nama Outlet'] || '');
+        return `<option value="${kode}">${namaO}</option>`;
+      }).join('');
+
+    // Load existing data
+    try {
+      const d = await call('apiGetPersonnel', APP_STATE.token, nama);
+      if (d.jabatan) {
+        const sel = document.getElementById('mpe-jabatan');
+        const opt = [...sel.options].find(o => o.value && o.value.toLowerCase() === String(d.jabatan).toLowerCase());
+        sel.value = opt ? opt.value : 'QC Area';
+      }
+      _editOutlets = Array.isArray(d.outlets) ? d.outlets.map(o => ({
+        kode: o.kode || o.code || '',
+        nama: o.nama || o['Nama Outlet'] || ''
+      })) : [];
+      _syncEditTags();
+      _autoFillAreaRegio();
+    } catch (e) {
+      toast('Gagal memuat data personel: ' + e.message, 'error');
+    }
+
+    showOrgModal('modal-person-edit');
+  }
+
+  function addOutletToEdit() {
+    const sel = document.getElementById('mpe-outlet-add');
+    const kode = sel.value;
+    if (!kode) return;
+    const namaOutlet = sel.options[sel.selectedIndex].text;
+    if (_editOutlets.find(o => o.kode === kode)) {
+      toast('Outlet sudah ditambahkan.', 'warning');
+      return;
+    }
+    _editOutlets.push({ kode, nama: namaOutlet });
+    sel.value = '';
+    _syncEditTags();
+    _autoFillAreaRegio();
+  }
+
+  function _removeEditOutlet(kode) {
+    _editOutlets = _editOutlets.filter(o => o.kode !== kode);
+    _syncEditTags();
+    _autoFillAreaRegio();
+  }
+
+  function _syncEditTags() {
+    const container = document.getElementById('mpe-outlet-tags');
+    if (!_editOutlets.length) {
+      container.innerHTML = '<span class="text-muted small">Belum ada outlet ditambahkan</span>';
+      return;
+    }
+    container.innerHTML = _editOutlets.map(o => `
+      <span class="outlet-tag-chip">
+        ${escHtml(o.nama)}
+        <button type="button" onclick="_removeEditOutlet('${escHtml(o.kode)}')" aria-label="Hapus">&times;</button>
+      </span>`).join('');
+  }
+
+  function _autoFillAreaRegio() {
+    if (!_editOutlets.length) {
+      document.getElementById('mpe-area').value  = '';
+      document.getElementById('mpe-regio').value = '';
+      return;
+    }
+    const outlets = (typeof APP_STATE !== 'undefined' && APP_STATE.outlets) ? APP_STATE.outlets : [];
+    const first = outlets.find(o => (o.kode || o.code || o['Kode']) === _editOutlets[0].kode);
+    if (first) {
+      document.getElementById('mpe-area').value  = first.area  || first.Area  || '';
+      document.getElementById('mpe-regio').value = first.region || first.rm || first.regio || '';
+    }
+  }
+
+  /* ══════════════════════════════════════════════
+     savePersonnel
+  ══════════════════════════════════════════════ */
+  async function savePersonnel() {
+    const nama    = document.getElementById('mpe-nama').value.trim();
+    const jabatan = document.getElementById('mpe-jabatan').value;
+
+    if (!jabatan) {
+      toast('Jabatan wajib dipilih.', 'warning');
+      return;
+    }
+    const isOffice = String(jabatan).toLowerCase().includes('office');
+    if (isOffice && _editOutlets.length) {
+      toast('QC Office hanya ditempatkan di Office — hapus outlet cinema dari daftar.', 'warning');
+      return;
+    }
+    if (!isOffice && !_editOutlets.length) {
+      toast('Minimal satu outlet harus dipilih untuk QC Area.', 'warning');
+      return;
+    }
+
+    const btn = document.getElementById('mpe-btn-save');
+    btn.disabled = true;
+    btn.textContent = 'Menyimpan…';
+
+    try {
+      window.__lastPersonnelRes = await call('apiUpdatePersonnel', APP_STATE.token, {
+        nama,
+        jabatan,
+        outlets: _editOutlets.map(o => o.kode),
+        area:  document.getElementById('mpe-area').value,
+        regio: document.getElementById('mpe-regio').value
+      });
+      const r = window.__lastPersonnelRes || {};
+      toast('Penugasan personel berhasil diperbarui.', 'success');
+      if (r.reassigned && r.reassigned.length) toast(r.reassigned.length + ' outlet dipindahkan dari Kabag lain.', 'info', 6000);
+      hideOrgModal('modal-person-edit');
+      await loadOrganization();
+    } catch (e) {
+      toast('Gagal menyimpan: ' + e.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Simpan';
+    }
+  }
+
+  /* ══════════════════════════════════════════════
+     QC Office — Tambah / Edit / Hapus (Admin)
+  ══════════════════════════════════════════════ */
+  function openOfficeForm(username) {
+    const u = username ? (_orgData && _orgData.office || []).find(o => o.username === username) : null;
+    document.getElementById('mof2-title').textContent = u ? 'Edit QC Office' : 'Tambah QC Office';
+    document.getElementById('mof2-orig').value = u ? u.username : '';
+    document.getElementById('mof2-nama').value = u ? u.nama : '';
+    const un = document.getElementById('mof2-username');
+    un.value = u ? u.username : '';
+    un.readOnly = !!u;
+    const pw = document.getElementById('mof2-pass');
+    pw.value = '';
+    pw.required = !u;
+    document.getElementById('mof2-pass-label').innerHTML = u ? 'Password Baru' : 'Password <span class="text-danger">*</span>';
+    document.getElementById('mof2-pass-hint').style.display = u ? 'block' : 'none';
+    document.getElementById('mof2-status').value = u && String(u.status).toLowerCase() === 'inactive' ? 'Inactive' : 'Active';
+    showOrgModal('modal-office-form');
+  }
+
+  async function saveOfficeForm(event) {
+    event.preventDefault();
+    const isEdit = !!document.getElementById('mof2-orig').value;
+    const pass = document.getElementById('mof2-pass').value.trim();
+    if ((!isEdit || pass) && pass.length < 6) {
+      toast('Password minimal 6 karakter.', 'warning');
+      return;
+    }
+    const payload = {
+      username: document.getElementById('mof2-username').value.trim(),
+      nama:     document.getElementById('mof2-nama').value.trim(),
+      password: pass,
+      status:   document.getElementById('mof2-status').value
+    };
+    if (!isEdit) payload.role = 'QC';   // pada edit, role & hak akses lain dipertahankan backend
+
+    const btn = document.getElementById('mof2-btn');
+    btn.disabled = true;
+    try {
+      const res = await call('apiSaveUser', APP_STATE.token, payload);
+      hideOrgModal('modal-office-form');
+      toast(res && res.created ? 'Anggota QC Office berhasil ditambahkan.' : 'Data QC Office berhasil diperbarui.', 'success');
+      await loadOrganization();
+    } catch (e) {
+      toast('Gagal menyimpan: ' + e.message, 'error');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function deleteOffice(username) {
+    const u = (_orgData && _orgData.office || []).find(o => o.username === username);
+    if (!u) return;
+    confirmDialog(
+      'Hapus QC Office',
+      `Hapus akun <b>${escHtml(u.nama)}</b> (@${escHtml(u.username)}) dari QC Office?<br><span class="text-muted">Akun akan dihapus permanen.</span>`,
+      async () => {
+        try {
+          await call('apiDeleteUser', APP_STATE.token, username);
+          toast('Anggota QC Office berhasil dihapus.', 'success');
+          await loadOrganization();
+        } catch (e) {
+          toast('Gagal menghapus: ' + e.message, 'error');
+        }
+      },
+      true
+    );
+  }
+
+  /* ══════════════════════════════════════════════
+     Expose globally
+  ══════════════════════════════════════════════ */
+  window.openOfficeForm      = openOfficeForm;
+  window.saveOfficeForm      = saveOfficeForm;
+  window.deleteOffice        = deleteOffice;
+  window.loadOrganization    = loadOrganization;
+  window.filterOrgTeam       = filterOrgTeam;
+  window.openPersonDetail    = openPersonDetail;
+  window.openEditPersonnel   = openEditPersonnel;
+  window.savePersonnel       = savePersonnel;
+  window.addOutletToEdit     = addOutletToEdit;
+  window._removeEditOutlet   = _removeEditOutlet;
+
+})();
+</script>

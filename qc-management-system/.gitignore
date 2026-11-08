@@ -1,0 +1,6 @@
+# Data uji berisi data pribadi — jangan di-commit
+*.xlsx
+*.json.data
+qcdata*.json
+node_modules/
+.clasp.json
