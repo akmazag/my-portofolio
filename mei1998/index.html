@@ -112,7 +112,7 @@
    ===================================================================== */
 const W = 1080, H = 1920;               // koordinat dunia (desain 9:16)
 const FPS = 24;                         // frame rate sinematik
-const DUR = 60.5;                       // durasi total (detik)
+const DUR = 61.0;                       // durasi total (detik)
 const QS = new URLSearchParams(location.search);
 const RES = QS.has('hd') ? 1 : 2 / 3;   // ?hd=1 → render 1080x1920
 const cv = document.getElementById('screen');
@@ -130,28 +130,29 @@ const C = {
 
 /* Naskah VO — `t` waktu mulai (detik), `say` versi ucapan untuk TTS */
 const CUES = [
-  { t: 0.4,  text: 'Kamis, 14 Mei 1998...', say: 'Kamis, empat belas Mei, sembilan belas sembilan puluh delapan.' },
-  { t: 5.0,  text: 'Langit Jakarta berubah cokelat.' },
-  { t: 7.0,  text: 'Asap hitam naik dari puluhan titik.' },
-  { t: 9.2,  text: 'Di Klender, menurut saksi mata, orang-orang digiring masuk ke sebuah mal...' },
-  { t: 12.6, text: '...lalu api menyala dari dalam. Ratusan orang tak pernah keluar.' },
-  { t: 15.5, text: 'Dua hari sebelumnya, empat mahasiswa gugur ditembak...' },
-  { t: 20.0, text: '...di kampus mereka sendiri.' },
-  { t: 25.0, text: 'Berbulan-bulan sebelumnya, para aktivis dijemput diam-diam.' },
-  { t: 29.0, text: 'Sebagian kembali. Tiga belas orang... sampai hari ini belum pulang.' },
-  { t: 34.0, text: 'Relawan kemanusiaan mencatat lebih dari 1.200 jiwa melayang di Jakarta.',
+  { t: 0.3,  text: 'Kamis, 14 Mei 1998...', say: 'Kamis, empat belas Mei, sembilan belas sembilan puluh delapan.' },
+  { t: 4.6,  text: 'Langit Jakarta berubah cokelat.' },
+  { t: 6.6,  text: 'Asap hitam naik dari puluhan titik.' },
+  { t: 8.8,  text: 'Di Klender, menurut saksi mata, orang-orang digiring masuk ke sebuah mal...' },
+  { t: 13.2, text: '...lalu api menyala dari dalam. Ratusan orang tak pernah keluar.' },
+  { t: 17.9, text: 'Dua hari sebelumnya, empat mahasiswa gugur ditembak...' },
+  { t: 21.3, text: '...di kampus mereka sendiri.' },
+  { t: 23.9, text: 'Berbulan-bulan sebelumnya, para aktivis dijemput diam-diam.' },
+  { t: 27.6, text: 'Sebagian kembali. Tiga belas orang... sampai hari ini belum pulang.' },
+  { t: 32.4, text: 'Relawan kemanusiaan mencatat lebih dari 1.200 jiwa melayang di Jakarta.',
              say: 'Relawan kemanusiaan mencatat lebih dari seribu dua ratus jiwa melayang di Jakarta.' },
-  { t: 40.0, text: 'Seminggu kemudian, penguasa yang memimpin 32 tahun... mundur.',
+  { t: 37.7, text: 'Seminggu kemudian, penguasa yang memimpin 32 tahun... mundur.',
              say: 'Seminggu kemudian, penguasa yang memimpin tiga puluh dua tahun... mundur.' },
-  { t: 44.5, text: 'Tapi pertanyaannya tetap menggantung: siapa yang menyalakan api itu?' },
-  { t: 48.0, text: 'Dan kenapa, 28 tahun kemudian, jawabannya belum juga tuntas?',
+  { t: 41.8, text: 'Tapi pertanyaannya tetap menggantung: siapa yang menyalakan api itu?' },
+  { t: 45.5, text: 'Dan kenapa, 28 tahun kemudian, jawabannya belum juga tuntas?',
              say: 'Dan kenapa, dua puluh delapan tahun kemudian, jawabannya belum juga tuntas?' },
-  { t: 52.5, text: 'Ini kisah Mei 1998. Sepuluh bagian, dari laporan resmi dan kesaksian para korban.',
+  { t: 50.6, text: 'Ini kisah Mei 1998. Sepuluh bagian, dari laporan resmi dan kesaksian para korban.',
              say: 'Ini kisah Mei sembilan belas sembilan puluh delapan. Sepuluh bagian, dari laporan resmi dan kesaksian para korban.' },
-  { t: 56.5, text: 'Lanjut ke Part 2... saat uang di dompet rakyat tiba-tiba tak ada harganya.',
+  { t: 57.2, text: 'Lanjut ke Part 2... saat uang di dompet rakyat tiba-tiba tak ada harganya.',
              say: 'Lanjut ke part dua... saat uang di dompet rakyat tiba-tiba tak ada harganya.' }
 ];
-CUES.forEach((c, i) => { c.end = i < CUES.length - 1 ? CUES[i + 1].t - 0.15 : 60.2; });
+const VO_LEN = [3.5, 1.51, 1.66, 4.12, 4.0, 3.0, 1.25, 3.35, 4.37, 3.92, 3.7, 3.27, 4.34, 6.16, 3.42];  /* durasi VO (dtk) per baris */
+CUES.forEach((c, i) => { c.end = Math.min(c.t + VO_LEN[i] + .45, i < CUES.length - 1 ? CUES[i + 1].t - .1 : DUR - .2); });
 
 /* =====================================================================
    UTILITAS
@@ -525,7 +526,7 @@ function vehicleBus(x, y, t) {
   smoke(x + 20, y - 150, t + 3, { h: 520, w: 70, drift: .4, n: 12, spd: .06, spr: SP_ASH, alpha: .55, sd: 9 });
 }
 function sceneCity(t) {
-  const pb = ease(prog(t, 0, 11.2)), sc = 1.42 - .42 * pb;
+  const pb = ease(prog(t, 0, 13.4)), sc = 1.42 - .42 * pb;
   g.save(); camera(sc, lerp(400, 540, pb), lerp(1180, 960, pb), 6, t + 100);
   const sg = g.createLinearGradient(0, 0, 0, 1100);
   sg.addColorStop(0, '#3a2614'); sg.addColorStop(.45, '#7a4a24'); sg.addColorStop(1, '#bf7a40');
@@ -612,8 +613,8 @@ function rose(i, t) {
   g.restore();
 }
 function sceneCampus(t) {
-  const sc = 1 + .12 * ease(prog(t, 0, 9.8));
-  g.save(); camera(sc, 540, lerp(1060, 1300, ease(prog(t, 0, 9.8))), 0, t);
+  const sc = 1 + .12 * ease(prog(t, 0, 6));
+  g.save(); camera(sc, 540, lerp(1060, 1300, ease(prog(t, 0, 6))), 0, t);
   const sg = g.createLinearGradient(0, 0, 0, 950);
   sg.addColorStop(0, '#1b1a1e'); sg.addColorStop(.55, '#3b3530'); sg.addColorStop(1, '#6a5845');
   g.fillStyle = sg; g.fillRect(-100, -100, W + 200, 1060);
@@ -688,7 +689,7 @@ function peelPoster(t) {
     g.save(); g.translate(PW / 2, PH / 2); inkRect(-PW / 2, -PH / 2, PW, PH, { w: 2.5, j: 1.5, color: 'rgba(14,12,10,.8)' }); g.restore();
     g.restore();
   } else {
-    const u = prog(t, 8.6, 15), s = 1 - .72 * u, flip = Math.cos(u * 14);
+    const u = prog(t, 8.6, 13.8), s = 1 - .72 * u, flip = Math.cos(u * 14);
     const px = x - PW / 2 + 720 * u + 50 * Math.sin(u * 9), py = y - PH / 2 - 1180 * u + 80 * Math.sin(u * 6);
     g.save(); g.globalAlpha = 1 - prog(u, .55, 1);
     g.translate(px + PW / 2 * s, py + PH / 2 * s); g.rotate(.5 + Math.sin(u * 7) * .9); g.scale(s * (Math.abs(flip) < .08 ? .08 * Math.sign(flip || 1) : flip), s);
@@ -698,8 +699,8 @@ function peelPoster(t) {
   }
 }
 function scenePosters(t) {
-  const fol = ease(prog(t, 8, 15));
-  const sc = 1 + .1 * ease(prog(t, 0, 15));
+  const fol = ease(prog(t, 8, 13.8));
+  const sc = 1 + .1 * ease(prog(t, 0, 13.8));
   g.save(); camera(sc, 540 + 60 * fol, 1000 - 160 * fol, 0, t);
   g.drawImage(WALL, 0, 0);
   for (let i = 0; i < POSTERS.length; i++) { if (i !== PEEL) poster(i, t); if (i === PEEL) peelPoster(t); }
@@ -708,7 +709,7 @@ function scenePosters(t) {
   g.stroke();
   g.restore();
   g.fillStyle = 'rgba(14,18,24,.22)'; g.fillRect(0, 0, W, H);
-  puff(SP_DARK, 1100, -100, 1300, .4 + .5 * prog(t, 8, 15));
+  puff(SP_DARK, 1100, -100, 1300, .4 + .5 * prog(t, 8, 13.8));
 }
 
 /* =====================================================================
@@ -778,7 +779,7 @@ function student(x, y, s) {
 }
 function sceneTV(t) {
   const bright = t < .45 ? prog(t, 0, .45) : .86 + .14 * noise1(t * 9);
-  const pi = ease(prog(t, 0, 12.2));
+  const pi = ease(prog(t, 0, 12.8));
   g.fillStyle = '#090807'; g.fillRect(-60, -60, W + 120, H + 120);
   g.save(); camera(1 + .14 * pi, 488, 800, 0, t);
   g.globalCompositeOperation = 'screen'; puff(SP_TV, 485, 780, 760, .3 * bright); g.globalCompositeOperation = 'source-over';
@@ -823,7 +824,7 @@ function handFront() {
 }
 function sceneNote(t) {
   g.fillStyle = '#070605'; g.fillRect(-60, -60, W + 120, H + 120);
-  const p = .03 + .6 * ease(prog(t, .3, 8.2));
+  const p = .03 + .6 * ease(prog(t, .3, 10.6));
   const front = y => 760 * (1 - p) + (noise1(y * .018 + t * .6) * 2 - 1) * 38 + (noise1(y * .07 + t * 2) - .5) * 18 - (y / 360) * 70 * p;
   const pts = []; for (let y = -12; y <= 372; y += 12) pts.push([front(y), y]);
   NB.globalCompositeOperation = 'source-over'; NB.clearRect(0, 0, 760, 360); NB.drawImage(NOTE, 0, 0);
@@ -834,7 +835,7 @@ function sceneNote(t) {
   NB.beginPath(); pts.forEach(([x, y], i) => i ? NB.lineTo(x, y) : NB.moveTo(x, y)); NB.lineTo(820, 372); NB.lineTo(820, -12); NB.closePath(); NB.fill();
   NB.globalCompositeOperation = 'source-over';
   const tx = (noise1(t * 14) - .5) * 7, ty = (noise1(t * 12 + 20) - .5) * 7, tr = (noise1(t * 10 + 50) - .5) * .012;
-  g.save(); camera(1 + .07 * ease(prog(t, 0, 8.3)), 560, 1000, 0, t);
+  g.save(); camera(1 + .07 * ease(prog(t, 0, 11)), 560, 1000, 0, t);
   g.globalCompositeOperation = 'lighter'; puff(SP_GLOW, 590 + 380 - 760 * p, 960, 520, .32 + .12 * noise1(t * 6)); g.globalCompositeOperation = 'source-over';
   g.translate(590 + tx, 980 + ty); g.rotate(-.14 + tr);
   handBack();
@@ -848,14 +849,14 @@ function sceneNote(t) {
   g.globalCompositeOperation = 'source-over';
   ASH.forEach(a => {
     const d = t - a.b; if (d < 0 || d > 3.2) return;
-    const pb = .03 + .6 * ease(prog(a.b, .3, 8.2)), x0 = 760 * (1 - pb) - 380, y0 = a.y - 180;
+    const pb = .03 + .6 * ease(prog(a.b, .3, 10.6)), x0 = 760 * (1 - pb) - 380, y0 = a.y - 180;
     const x = x0 + a.vx * d + Math.sin(d * 3 + a.rot) * 14, y = y0 + a.vy * d;
     g.save(); g.translate(x, y); g.rotate(a.rot + d * 2); g.globalAlpha = 1 - d / 3.2;
     g.fillStyle = a.glow && d < 1.2 ? C.emberL : '#6d6860'; g.fillRect(-a.r, -a.r * .6, a.r * 2, a.r * 1.2); g.restore(); g.globalAlpha = 1;
   });
   g.restore();
   /* title card */
-  const a1 = prog(t, 2.0, 3.2) * (1 - prog(t, 5.2, 5.8)), a2 = prog(t, 5.8, 6.6);
+  const a1 = prog(t, 2.2, 3.4) * (1 - prog(t, 6.4, 7.0)), a2 = prog(t, 7.0, 7.8);
   g.textAlign = 'center'; g.textBaseline = 'alphabetic';
   if (a1 > 0) {
     g.globalAlpha = a1; g.fillStyle = '#efe9de'; g.font = '220px "Bebas Neue", Impact, sans-serif'; g.fillText('MEI 1998', 540, 470);
@@ -874,11 +875,11 @@ function sceneNote(t) {
    ===================================================================== */
 const SCENES = [
   { a: 0,    b: 4.0,  draw: sceneClock,   fin: 0,   fout: 0 },
-  { a: 4.0,  b: 15.2, draw: sceneCity,    fin: 0,   fout: .35 },
-  { a: 15.2, b: 25.0, draw: sceneCampus,  fin: .6,  fout: .6 },
-  { a: 25.0, b: 40.0, draw: scenePosters, fin: .6,  fout: .4 },
-  { a: 40.0, b: 52.2, draw: sceneTV,      fin: .3,  fout: .25 },
-  { a: 52.2, b: DUR,  draw: sceneNote,    fin: .4,  fout: .8 }
+  { a: 4.0,  b: 17.4, draw: sceneCity,    fin: 0,   fout: .35 },
+  { a: 17.4, b: 23.4, draw: sceneCampus,  fin: .5,  fout: .5 },
+  { a: 23.4, b: 37.2, draw: scenePosters, fin: .5,  fout: .4 },
+  { a: 37.2, b: 50.0, draw: sceneTV,      fin: .3,  fout: .25 },
+  { a: 50.0, b: DUR,  draw: sceneNote,    fin: .4,  fout: .8 }
 ];
 const opt = { tts: true, subs: true };
 
@@ -1089,7 +1090,7 @@ function buildScore() {
   A.g1.d.gain.setTargetAtTime(0, T(45), .02); A.g1.w.gain.setTargetAtTime(0, T(45), .02);
   for (let x = 45.05, k = 0; x < 52; x += 1, k++) tick(T(x), k % 2 === 0);
   /* 52–60: motif piano 4 nada, minor, ekor reverb */
-  sMotif(52.3); sFire(52.2, 60.5, .035, A.g2);
+  sMotif(52.3); sFire(50.0, 61.0, .035, A.g2);
 }
 
 /* =====================================================================
